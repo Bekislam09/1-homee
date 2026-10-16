@@ -26,4 +26,8 @@ yarn-error.log*
 /test-results
 /playwright-report
 
-/releases/
+/releases/*
+!/releases/smash-city-source.zip
+!/releases/smash-city-yandex.zip
+!/releases/smash-city-crazygames-basic.zip
+!/releases/smash-city-crazygames-full.zip
