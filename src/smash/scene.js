@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-import { iso, createTextures, drawGround, createDecor, ART_ANCHOR } from './art.js';
-import { GOAL, DURATION } from './simulation.js';
+import { iso, createTextures, drawGround, createDecor, ART_ANCHOR, getVehicleTextureOffset } from './art.js';
 
 export class CityScene extends Phaser.Scene {
   constructor(simulation, controls) {
@@ -31,6 +30,7 @@ export class CityScene extends Phaser.Scene {
     });
     this.shadow = this.add.ellipse(0, 0, 74, 31, 0x25443d, .16);
     this.dozer = this.add.image(0, 0, 'dozer-0').setOrigin(.5, 1);
+    this.attackArea = this.add.ellipse(0,0,20,12,0xf5c864,.12).setStrokeStyle(2,0xd89943,.7).setVisible(false);
     this.particles = Array.from({ length: 100 }, () => ({
       view: this.add.image(0, 0, 'dust').setVisible(false), life: 0,
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, max: 1, size: 1
@@ -82,14 +82,26 @@ export class CityScene extends Phaser.Scene {
 
   resetViews() {
     this.accumulator = 0;
+    const district=this.sim.mission?.district||'town';
+    if(this.currentDistrict!==district){
+      this.ground.destroy();
+      this.decor.forEach(d=>d.view.destroy());
+      this.ground=drawGround(this,district);
+      this.decor=createDecor(this,district);
+      this.currentDistrict=district;
+    }
     this.buildings.forEach((v, i) => {
       const b = this.sim.buildings[i];
-      v.hp = b.maxHp; v.dead = false; v.shake = 0; v.collapseTime = 0; v.collapse.setVisible(false);
-      v.view.setTexture(`${b.type}-0`).setAlpha(1).setScale(1);
+      v.hp = b.maxHp; v.dead = false; v.shake = 0; v.collapseTime = 0; v.collapse.setVisible(false).setRotation(0);
+      const loc=iso(b.x,b.y);
+      v.view.setTexture(`${b.type}-0`).setAlpha(1).setScale(1).setDepth(b.x+b.y).setPosition(loc.x,loc.y+ART_ANCHOR.building);
+      v.collapse.setTexture(`${b.type}-2`).setDepth(b.x+b.y+2);
+      v.health.setDepth(b.x+b.y+.5);
       v.health.clear();
     });
     this.particles.forEach(p => { p.life = 0; p.view.setVisible(false); });
     this.labels.forEach(p => { p.life = 0; p.view.setVisible(false); });
+    this.attackArea.setVisible(false);
     this.layout();
   }
 
@@ -120,12 +132,17 @@ export class CityScene extends Phaser.Scene {
       const v = this.buildings[index];
       if (e.type === 'ram') {
         this.emit('spark', this.sim.player.x, this.sim.player.y, 8);
+      } else if (e.type === 'ability-impact') {
+        this.emit('spark',e.targetX,e.targetY,7);this.emit('dust',e.targetX,e.targetY,9);
+        if(this.controls.effects)this.cameras.main.shake(100,.0015);
+      } else if(e.type==='chain'){
+        if(e.count>1)this.floatLabel(e.x,e.y,`ЦЕПЬ ×${e.count}`,'#fff1c7');
       } else if (e.type === 'hit') {
         if (v) v.shake = .24;
         this.emit('chip', e.x, e.y, 6);
         this.emit('dust', e.x, e.y, 4);
       } else if (e.type === 'destroy') {
-        if(v){v.collapseTime=.32;v.collapse.setVisible(true).setScale(1).setAlpha(1);}
+        if(v){v.collapseDuration=this.sim.buildings[index]?.type==='tower'?.65:.32;v.collapseTime=v.collapseDuration;v.collapse.setVisible(true).setScale(1).setRotation(0).setAlpha(1);}
         this.emit('chip', e.x, e.y, 16);
         this.emit('dust', e.x, e.y, 12);
         this.emit('coin', e.x, e.y, 6);
@@ -168,7 +185,14 @@ export class CityScene extends Phaser.Scene {
     const moving = active && player.speed > 8;
     const vibration = moving ? Math.sin(this.elapsed * 35) * 1.2 : Math.sin(this.elapsed * 2) * .45;
     const treadFrame = moving && Math.floor(this.elapsed * 14) % 2 ? '-moving' : '';
-    this.dozer.setTexture(`dozer-${direction}${treadFrame}`).setPosition(p.x, p.y + ART_ANCHOR.dozer + vibration).setDepth(x + y + 1);
+    const vehicleId=this.sim.vehicleId||'dozer';
+    let texture=`${vehicleId}-${direction}${treadFrame}`;
+    if(!menu&&vehicleId!=='dozer'&&player.ramTime>0){const fraction=(player.abilityElapsed||0)/(player.abilityDuration||1);const phase=fraction<.2?0:fraction<.5-1e-6?1:fraction<.7?2:fraction<.9?3:4;texture=`${vehicleId}-${direction}-attack-${phase}`;}
+    this.dozer.setTexture(texture).setPosition(p.x, p.y + getVehicleTextureOffset(vehicleId) + vibration).setDepth(x + y + 1);
+    const target=player.attackTarget;
+    if(active&&target&&vehicleId!=='dozer'){
+      const q=iso(target.x,target.y);this.attackArea.setVisible(true).setPosition(q.x,q.y).setDisplaySize(2.449*target.radius,1.414*target.radius).setDepth(target.x+target.y-180);
+    }else this.attackArea.setVisible(false);
     const squash = active && player.ramTime > 0 ? 1.035 : 1;
     this.dozer.setScale(squash);
     this.shadow.setPosition(p.x, p.y + 5).setDepth(x + y - 1);
@@ -188,12 +212,12 @@ export class CityScene extends Phaser.Scene {
         } else {
           const stage = Math.min(2, Math.max(1, Math.ceil((1 - b.hp / b.maxHp) * 2)));
           v.view.setTexture(`${b.type}-${stage}`);
-          const height = b.type === 'house' ? 154 : b.type === 'kiosk' ? 101 : 78;
+          const height = b.type === 'tower' ? 185 : b.type === 'house' ? 154 : b.type === 'warehouse'?120 : b.type === 'containers'?110 : b.type === 'kiosk' ? 101 : 78;
           v.health.clear().fillStyle(0x25443c, .65).fillRoundedRect(loc.x - 26, loc.y - height, 52, 5, 2);
           v.health.fillStyle(0xf0b64c).fillRoundedRect(loc.x - 26, loc.y - height, Math.max(2, 52 * b.hp / b.maxHp), 5, 2);
         }
       }
-      if(v.collapseTime>0&&!this.controls.paused){v.collapseTime=Math.max(0,v.collapseTime-dt);const t=1-v.collapseTime/.32;v.collapse.setPosition(loc.x,loc.y+ART_ANCHOR.building+t*12).setScale(1+t*.12,1-t*.75).setAlpha(1-t).setVisible(v.collapseTime>0);}
+      if(v.collapseTime>0&&!this.controls.paused){v.collapseTime=Math.max(0,v.collapseTime-dt);const t=1-v.collapseTime/(v.collapseDuration||.32),tower=b.type==='tower';v.collapse.setPosition(loc.x+(tower?t*100:0),loc.y+ART_ANCHOR.building+t*(tower?32:12)).setScale(1+(tower?0:t*.12),1-t*(tower?.12:.75)).setRotation(tower?t*1.2:0).setAlpha(tower?Math.min(1,(1-t)*2):1-t).setVisible(v.collapseTime>0);}
       v.shake = Math.max(0, v.shake - dt);
       v.view.setPosition(loc.x + Math.sin(v.shake * 70) * v.shake * 18, loc.y + ART_ANCHOR.building);
       if (v.shake > 0) v.view.setTint(0xffe6ac); else v.view.clearTint();

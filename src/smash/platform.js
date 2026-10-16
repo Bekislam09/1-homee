@@ -1,15 +1,8 @@
-const STORAGE_KEY = 'smash-city-v1';
+import { cleanProgression } from './progression.js';
 
-function cleanSave(data) {
-  const balance = Number.isSafeInteger(data?.balance) && data.balance >= 0 ? data.balance : 0;
-  return {
-    balance,
-    settings: {
-      sound: typeof data?.settings?.sound === 'boolean' ? data.settings.sound : true,
-      effects: typeof data?.settings?.effects === 'boolean' ? data.settings.effects : true,
-    },
-  };
-}
+export const STORAGE_KEY = 'smash-city-v2';
+export const LEGACY_STORAGE_KEY = 'smash-city-v1';
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 /** Integration boundary: real SDK adapters can implement this contract later. */
 export class PlatformAdapter {
@@ -36,13 +29,30 @@ export class LocalPlatform extends PlatformAdapter {
     try {
       const storage = this.getStorage();
       if (!storage) throw new Error('Local storage is unavailable');
-      const raw = storage.getItem(STORAGE_KEY);
-      const saved = raw === null ? null : JSON.parse(raw);
-      this.lastLoadSucceeded = true;
-      return cleanSave(saved);
+      let corrupt = false;
+      for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+        const raw = storage.getItem(key);
+        if (raw === null) continue;
+        try {
+          const saved = JSON.parse(raw);
+          if (!isObject(saved) || (key === STORAGE_KEY && saved.version !== 2)) {
+            corrupt = true;
+            continue;
+          }
+          this.lastLoadSucceeded = true;
+          this.state = cleanProgression(saved);
+          return this.state;
+        } catch {
+          corrupt = true;
+        }
+      }
+      this.lastLoadSucceeded = !corrupt;
+      this.state = cleanProgression(null);
+      return this.state;
     } catch {
       this.lastLoadSucceeded = false;
-      return cleanSave(null);
+      this.state = cleanProgression(null);
+      return this.state;
     }
   }
 
@@ -50,7 +60,13 @@ export class LocalPlatform extends PlatformAdapter {
     try {
       const storage = this.getStorage();
       if (!storage) throw new Error('Local storage is unavailable');
-      storage.setItem(STORAGE_KEY, JSON.stringify(cleanSave(data)));
+      const previous = this.state ?? this.load();
+      const patch = isObject(data) ? data : {};
+      const next = cleanProgression({ ...previous, ...patch,
+        settings: { ...previous.settings, ...(isObject(patch.settings) ? patch.settings : {}) },
+      });
+      storage.setItem(STORAGE_KEY, JSON.stringify(next));
+      this.state = next;
       this.lastSaveSucceeded = true;
       return true;
     } catch {

@@ -1,12 +1,18 @@
 import Phaser from 'phaser';
 import { CityScene } from './scene.js';
-import { Simulation, GOAL, DURATION } from './simulation.js';
+import { Simulation } from './simulation.js';
 import { LocalPlatform } from './platform.js';
 import { AudioSystem } from './audio.js';
 import './style.css';
 import {t} from './i18n.js';
+import {VEHICLES,MISSIONS,DISTRICTS,getMission} from './content.js';
+import {Progression} from './progression.js';
 
 const icons = {
+  garage: '<path d="m3 10 9-7 9 7v11H3V10ZM7 21V11h10v10M7 15h10M7 18h10"/>',
+  levels: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>',
+  star: '<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1 3-6Z"/>',
   bolt: '<path d="m14 2-9 12h6l-1 8 9-12h-6l1-8Z"/>',
   play: '<path d="m9 5 11 7-11 7V5Z"/>',
   coin: '<circle cx="12" cy="12" r="9"/><path d="m12 7 4 5-4 5-4-5 4-5Z"/>',
@@ -27,8 +33,13 @@ const svg = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" fi
 const $ = selector => document.querySelector(selector);
 const platform = new LocalPlatform();
 const saved = platform.load();
-const settings = saved.settings;
-const sim = new Simulation({ balance: saved.balance });
+const progress = new Progression(saved);
+const settings = progress.state.settings;
+const sim = new Simulation({ balance: progress.state.balance });
+let activeMissionId=Math.min(4,(progress.state.completedLevels.at(-1)||0)+1);
+let garageVehicle=progress.state.selectedVehicle;
+let districtFilter='town';
+let lastSettlement=null;
 const audio = new AudioSystem();
 audio.enabled = settings.sound;
 let scene;
@@ -54,7 +65,7 @@ $('#app').innerHTML = `
     <p class="hero-description">Маленький бульдозер.<br>Большие планы на этот город.</p>
     <div class="mission-label"><span class="level-number">01</span><div><small>ПЕРВАЯ СМЕНА</small><strong>Начало разрушений</strong></div><span class="mission-arrow">${svg('arrow')}</span></div>
     <button id="play" class="play-button" disabled><span>${svg('play')} <span id="play-label">Загружаем город…</span></span>${svg('arrow')}</button>
-    <div class="hero-meta"><span>${svg('clock')}90 секунд</span><i></i><span>${svg('target')}1 000 очков</span><i></i><span>Один большой бум.</span></div>
+    <div class="hero-meta"><span>${svg('clock')}90 секунд</span><i></i><span>${svg('target')}1 000 очков</span><i></i><span>Один большой бум.</span></div><nav class="menu-nav"><button id="garage">${svg('garage')} Гараж</button><button id="levels">${svg('levels')} Уровни <span>4</span></button></nav>
   </div>
   <div class="scene-caption"><span class="tiny-rule"></span> РАЙОН № 01<span class="caption-dot"></span>СОЛНЕЧНЫЙ КВАРТАЛ</div>
   <div class="scene-sticker"><span>${svg('bolt')}</span><div>ГОРОД ГОТОВ.<br><b>А ТЫ?</b></div></div>
@@ -67,22 +78,27 @@ $('#app').innerHTML = `
   <button id="help" class="help-button">Как играть <span>?</span></button>
 </section>
 <footer id="footer"><span>СОЗДАНО ДЛЯ МАЛЕНЬКИХ ПЕРЕРЫВОВ</span><span><span class="status-dot"></span> БОЛЬШИЕ РАЗРУШЕНИЯ — БЕЗ ЛИШНИХ СЛОЖНОСТЕЙ</span></footer>
+<section id="garage-screen" class="subscreen hidden" aria-label="Гараж"></section>
+<section id="levels-screen" class="subscreen hidden" aria-label="Выбор уровней"></section>
 <section id="hud" class="hud hidden" aria-label="Игровые показатели">
   <div class="timer-panel"><span class="timer-icon">${svg('clock')}</span><div><small>ОСТАЛОСЬ ВРЕМЕНИ</small><b id="timer">1:30</b></div></div>
-  <div class="goal-panel"><div><span>НАЧАЛО РАЗРУШЕНИЙ</span><b><span id="score">0</span><i> / 1 000</i></b></div><div class="progress-track"><span id="score-progress"></span></div></div>
+  <div class="goal-panel"><div><span id="hud-mission">НАЧАЛО РАЗРУШЕНИЙ</span><b><span id="mission-progress">0</span><i id="mission-target"> / 1 000</i></b></div><div class="progress-track"><span id="score-progress"></span></div></div>
   <div class="run-coins"><small>ЗА ЭТУ СМЕНУ</small><b>${svg('coin')} <span id="run-coins">0</span></b></div>
   <div id="combo" class="combo hidden"><span>КОМБО</span><b>×<span id="combo-value">1</span></b><small>ОЧКИ УМНОЖАЮТСЯ</small></div>
   <div class="desktop-hint"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span><span>движение</span><span class="hint-divider"></span><span class="key wide-key">ПРОБЕЛ</span><span>мощный таран</span></div>
   <button id="ram" class="ram-button" aria-label="Мощный таран"><span class="ram-symbol">${svg('bolt')}</span><span><strong>ТАРАН</strong><small id="ram-status">ГОТОВ К УДАРУ</small></span><div class="ram-track"><span id="ram-progress"></span></div></button>
   <div id="joystick" class="joystick" aria-label="Виртуальный джойстик"><span class="joystick-arrows">＋</span><span id="joystick-stick"></span></div>
-  <div class="level-pill">УРОВЕНЬ 01 <span>·</span> СОЛНЕЧНЫЙ КВАРТАЛ</div>
+  <div class="level-pill"><span id="hud-location">УРОВЕНЬ 01 · СОЛНЕЧНЫЙ КВАРТАЛ</span><span id="hud-score">ОЧКИ 0</span></div>
 </section>
 <div id="toast" class="toast hidden" role="status"></div>
 <div id="pause-overlay" class="overlay hidden"><section class="modal pause-modal"><div class="modal-icon">${svg('pause')}</div><div class="eyebrow">ПЕРЕРЫВ НА ОБЕД</div><h2>Город подождёт.</h2><p>Продолжим, когда будешь готов.</p><button id="resume" class="play-button">Продолжить ${svg('play')}</button><button id="pause-menu" class="text-button">Главное меню</button></section></div>
 <div id="dialog" class="overlay hidden"></div>`;
 
 function save() {
-  if (!platform.save({ balance: sim.balance, settings }) && !save.warned) {
+  progress.state.balance=sim.balance;
+  progress.state.settings=settings;
+  $('#balance').textContent=sim.balance.toLocaleString('ru');
+  if (!platform.save(progress.state) && !save.warned) {
     save.warned = true;
     toast('Хранилище недоступно. Монеты сохранятся только до закрытия страницы.');
   }
@@ -119,20 +135,25 @@ function updateInput() {
   controls.input.ram = keys.has('Space') || ramPointer !== null;
 }
 function setMenuVisible(value) {
+  $('#garage-screen').classList.add('hidden');$('#levels-screen').classList.add('hidden');document.body.classList.remove('in-hub');
   for (const name of ['menu', 'building-guide', 'footer']) $(`#${name}`).classList.toggle('hidden', !value);
   $('#hud').classList.toggle('hidden', value);
   $('#pause').classList.toggle('hidden', value);
   document.body.classList.toggle('in-game', !value);
 }
-function start() {
+function start(missionId=activeMissionId) {
+  if(!Number.isInteger(missionId))missionId=activeMissionId;
+  if(!progress.isLevelUnlocked(missionId)){toast('Сначала пройди предыдущее задание.');return;}
+  activeMissionId=missionId;lastSettlement=null;
   audio.init();
-  sim.start();
+  sim.start({missionId,vehicleId:progress.state.selectedVehicle,coinScale:progress.coinScale(missionId)});
   controls.screen = 'playing'; controls.paused = false;
   clearInput();
   $('#dialog').classList.add('hidden'); $('#pause-overlay').classList.add('hidden');
   setMenuVisible(false);
   scene.resetViews();
-  toast(t(touchMode ? 'touchHelp' : 'desktopHelp'));
+  toast(sim.vehicleId==='dozer'?t(touchMode?'touchHelp':'desktopHelp'):(touchMode?`Джойстик — движение. Способность: ${sim.vehicle.abilityName.toLowerCase()}!`:`Движение — WASD. Пробел — ${sim.vehicle.abilityName.toLowerCase()}!`));
+  $('.desktop-hint>span:last-child').textContent=sim.vehicle.abilityName.toLowerCase();
   $('#play').blur();
   updateHud(true);
 }
@@ -144,6 +165,7 @@ function menu() {
   $('#toast').classList.add('hidden');
   setMenuVisible(true);
   scene.resetViews();
+  updateMenuMission();
 }
 function pause(value = true) {
   if (controls.screen !== 'playing') return;
@@ -169,7 +191,7 @@ function openSettings() {
   $('#close-settings').focus();
 }
 function help() {
-  $('#dialog').innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="eyebrow">КОРОТКИЙ ИНСТРУКТАЖ</div><h2 id="help-title">Всё просто.<br>Просто снеси.</h2><div class="help-step"><b>01</b><p>Управляй бульдозером с помощью <strong>WASD / стрелок</strong> или экранного джойстика.</p></div><div class="help-step"><b>02</b><p>Направь ковш в здание и нажми <strong>пробел / кнопку тарана</strong>. Обычное движение тоже постепенно повреждает здания.</p></div><div class="help-step"><b>03</b><p>Набери <strong>1 000 очков за 90 секунд</strong>. Сноси здания с интервалом до 7 секунд для комбо ×3. Монеты не умножаются.</p></div><button id="help-done" class="play-button">Понятно. За работу! ${svg('arrow')}</button></section>`;
+  $('#dialog').innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="eyebrow">КОРОТКИЙ ИНСТРУКТАЖ</div><h2 id="help-title">Всё просто.<br>Просто снеси.</h2><div class="help-step"><b>01</b><p>Управляй бульдозером с помощью <strong>WASD / стрелок</strong> или экранного джойстика.</p></div><div class="help-step"><b>02</b><p>Направь ковш в здание и нажми <strong>пробел / кнопку способности</strong>. Обычное движение тоже постепенно повреждает здания.</p></div><div class="help-step"><b>03</b><p>Выбирай задания на очки, скорость или цепь. Сноси здания с интервалом до 7 секунд для комбо ×3. Монеты не умножаются. Новая техника и районы открываются в гараже и на экране уровней.</p></div><button id="help-done" class="play-button">Понятно. За работу! ${svg('arrow')}</button></section>`;
   $('#dialog').classList.remove('hidden');
   $('#help-done').onclick = () => $('#dialog').classList.add('hidden');
   $('#help-done').focus();
@@ -177,13 +199,17 @@ function help() {
 function finish() {
   if (controls.screen === 'result') return;
   controls.screen = 'result'; controls.paused = false;
+  progress.state.balance=sim.balance;
+  lastSettlement=progress.completeRun(sim.result());
+  sim.balance=progress.state.balance;
   clearInput(); save();
   $('#toast').classList.add('hidden'); $('#pause-overlay').classList.add('hidden');
   const won = sim.phase === 'won';
   audio.play(won ? 'win' : 'lose');
-  $('#dialog').innerHTML = `<section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title"><div class="result-emblem ${won ? '' : 'lost'}">${svg(won ? 'trophy' : 'clock')}</div><div class="eyebrow">УРОВЕНЬ 01 / ${won ? 'ЧИСТАЯ РАБОТА' : 'СМЕНА ЗАКОНЧЕНА'}</div><h2 id="result-title">${t(won ? 'victory' : 'defeat')}</h2><p>${won ? 'Кажется, у тебя талант к большим разрушениям.' : `Ещё немного! До цели не хватило ${Math.max(0, GOAL - sim.score)} очков.`}</p><div class="result-stats"><div><small>Очки</small><b id="result-score">${sim.score.toLocaleString('ru')}</b></div><div><small>Снесено зданий</small><b>${sim.destroyed}<em> / 14</em></b></div><div><small>Лучшее комбо</small><b>×${sim.bestCombo}</b></div><div><small>Заработано монет</small><b class="coin-value">${svg('coin')}${sim.coins}</b></div></div><button id="replay" class="play-button">${t(won ? 'replay' : 'retry')} ${svg('reset')}</button><button id="back-menu" class="text-button">Главное меню ${svg('arrow')}</button></section>`;
+  $('#dialog').innerHTML = `<section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title"><div class="result-emblem ${won ? '' : 'lost'}">${svg(won ? 'trophy' : 'clock')}</div><div class="eyebrow">УРОВЕНЬ ${sim.mission.id} / ${won ? 'ЧИСТАЯ РАБОТА' : 'СМЕНА ЗАКОНЧЕНА'}</div><h2 id="result-title">${t(won ? 'victory' : 'defeat')}</h2>${won?`<div class="result-stars" aria-label="${lastSettlement.stars} звезды">${[1,2,3].map(n=>`<span class="${n<=lastSettlement.stars?'earned':''}">${svg('star')}</span>`).join('')}</div>`:''}<p>${won ? 'Кажется, у тебя талант к большим разрушениям.' : `Ещё немного! До цели не хватило ${Math.max(0, sim.mission.target - sim.progress)} ${sim.mission.objective==='score'?'очков':sim.mission.objective==='destroy'?'зданий':'звеньев цепи'}.`}</p><div class="result-stats"><div><small>Очки</small><b id="result-score">${sim.score.toLocaleString('ru')}</b></div><div><small>Снесено зданий</small><b>${sim.destroyed}<em> / ${sim.buildings.length}</em></b></div><div><small>Лучшее комбо</small><b>×${sim.bestCombo}</b></div><div><small>Заработано монет</small><b class="coin-value">${svg('coin')}${sim.coins+(lastSettlement?.bonus||0)}</b></div></div>${won?`<p class="result-bonus">Бонус задания: +${lastSettlement.bonus} монет · ${lastSettlement.stars} / 3 звёзд<br>${sim.mission.id<4?'Следующее задание открыто.':'Все районы доступны. Время ставить рекорды!'}</p>`:''}<button id="replay" class="play-button">${t(won ? 'replay' : 'retry')} ${svg('reset')}</button><div class="result-links"><button id="result-garage" class="text-button">Гараж ${svg('garage')}</button><button id="result-levels" class="text-button">Уровни ${svg('levels')}</button><button id="back-menu" class="text-button">Меню ${svg('arrow')}</button></div></section>`;
   $('#dialog').classList.remove('hidden');
-  $('#replay').onclick = start; $('#back-menu').onclick = menu;
+  $('#replay').onclick = ()=>start(activeMissionId); $('#back-menu').onclick = menu;
+  $('#result-garage').onclick=openGarage;$('#result-levels').onclick=openLevels;
   $('#replay').focus();
 }
 function updateHud(force = false) {
@@ -193,8 +219,12 @@ function updateHud(force = false) {
   const seconds = Math.ceil(sim.timeLeft);
   $('#timer').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   $('.timer-panel').classList.toggle('urgent', seconds <= 15);
-  $('#score').textContent = sim.score.toLocaleString('ru');
-  $('#score-progress').style.width = `${Math.min(100, sim.score / GOAL * 100)}%`;
+  $('#mission-progress').textContent = sim.progress.toLocaleString('ru');
+  $('#mission-target').textContent=` / ${sim.mission.target.toLocaleString('ru')}`;
+  $('#hud-mission').textContent=sim.mission.title.toUpperCase();
+  $('#hud-location').textContent=`УРОВЕНЬ ${sim.mission.id} · ${DISTRICTS[sim.mission.district].name.toUpperCase()}`;
+  $('#hud-score').textContent=`ОЧКИ ${sim.score}`;
+  $('#score-progress').style.width = `${Math.min(100, sim.progress / sim.mission.target * 100)}%`;
   $('#balance').textContent = sim.balance.toLocaleString('ru');
   $('#run-coins').textContent = sim.coins;
   $('#combo').classList.toggle('hidden', sim.combo < 2);
@@ -202,14 +232,19 @@ function updateHud(force = false) {
   const cooldown = sim.player.ramCooldown;
   $('#ram-status').textContent = cooldown > .05 ? t('ramCooldown',{time:cooldown.toFixed(1)}) : t('ramReady');
   $('#ram').classList.toggle('cooldown', cooldown > .05);
-  $('#ram-progress').style.width = `${Math.max(0, 1 - cooldown / 2.2) * 100}%`;
+  $('#ram-progress').style.width = `${Math.max(0, 1 - cooldown / sim.vehicle.cooldown) * 100}%`;
+  $('#ram strong').textContent=sim.vehicle.abilityName;
+  $('#ram').setAttribute('aria-label',sim.vehicle.abilityName);
   $('#ram').setAttribute('aria-disabled', String(cooldown > .05));
 }
 
-controls.onReady = ready => { scene = ready; $('#play').disabled = false; $('#play-label').textContent = t('play'); };
+controls.onReady = ready => { scene = ready; $('#play').disabled = false; $('#play-label').textContent = t('play');updateMenuMission(); };
 controls.onEvents = events => {
   for (const event of events) {
     if (['ram', 'hit', 'destroy'].includes(event.type)) audio.play(event.type);
+    if(event.type==='ability-start'&&event.vehicleId!=='dozer')audio.play('ram');
+    if(event.type==='ability-impact')audio.play('hit');
+    if(event.type==='chain'&&event.count>=2){toast(`ЦЕПНАЯ РЕАКЦИЯ ×${event.count}!`);audio.play('destroy');}
     if (event.type === 'destroy') { audio.play('coin'); save(); if (event.combo >= 2) toast(t('combo', {combo:event.combo})); }
   }
 };
@@ -217,10 +252,11 @@ controls.onFinish = finish;
 controls.onFrame = () => {
   const active = controls.screen === 'playing' && !controls.paused;
   audio.update(sim.player.speed, active);
-  if (controls.screen !== 'menu') updateHud();
+  if (controls.screen === 'playing'||controls.screen==='result') updateHud();
 };
 
-$('#play').onclick = start;
+$('#play').onclick = ()=>start();
+$('#garage').onclick=openGarage;$('#levels').onclick=openLevels;
 $('#brand').onclick = event => { event.preventDefault(); if (scene) menu(); };
 $('#settings').onclick = openSettings;
 $('#help').onclick = help;
@@ -291,5 +327,67 @@ window.addEventListener('resize', () => { game.scale.resize(innerWidth, innerHei
 window.addEventListener('pagehide', () => { audio.update(0, false); });
 // State helpers are opt-in and excluded from production builds by Vite.
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('test')) {
-  window.__smash = { sim, controls, game, settings, start, menu, finish, get scene() { return scene; } };
+  window.__smash = { sim, controls, game, settings, progress, start, menu, finish, openGarage,openLevels, get scene() { return scene; } };
+}
+
+const textureUrls=new Map();
+function artUrl(key){
+  if(!scene?.textures.exists(key))return '';
+  if(!textureUrls.has(key)){const source=scene.textures.get(key).getSourceImage();textureUrls.set(key,source.toDataURL('image/png'));}
+  return textureUrls.get(key);
+}
+function updateMenuMission(){
+  const mission=getMission(activeMissionId);
+  $('.scene-caption').innerHTML=`<span class="tiny-rule"></span> РАЙОН № ${mission.district==='town'?'01':'02'}<span class="caption-dot"></span>${DISTRICTS[mission.district].name.toUpperCase()}`;
+  $('.mission-label .level-number').textContent=String(mission.id).padStart(2,'0');
+  $('.mission-label strong').textContent=mission.title;
+  $('.mission-label small').textContent=DISTRICTS[mission.district].name.toUpperCase();
+  $('.hero-meta').innerHTML=`<span>${svg('clock')}${mission.duration} секунд</span><i></i><span>${svg('target')}${mission.target.toLocaleString('ru')} ${mission.objective==='score'?'очков':mission.objective==='destroy'?'зданий':'в цепи'}</span><i></i><span>Твоя следующая смена.</span>`;
+}
+function enterHub(name){
+  if(!scene)return false;
+  clearInput();controls.screen=name;controls.paused=false;
+  $('#dialog').classList.add('hidden');$('#pause-overlay').classList.add('hidden');$('#toast').classList.add('hidden');
+  setMenuVisible(false);$('#hud').classList.add('hidden');$('#pause').classList.add('hidden');
+  document.body.classList.add('in-hub');
+  $('#balance').textContent=sim.balance.toLocaleString('ru');
+  return true;
+}
+function openGarage(){
+  if(!enterHub('garage'))return;
+  garageVehicle=progress.state.selectedVehicle;
+  $('#garage-screen').classList.remove('hidden');
+  renderGarage();
+}
+function renderGarage(){
+  const selected=VEHICLES[garageVehicle],owned=progress.state.ownedVehicles.includes(garageVehicle),active=progress.state.selectedVehicle===garageVehicle;
+  $('#garage-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">ТВОЯ МАЛЕНЬКАЯ КОМАНДА</div><h2>Большие планы.<br><span>Подходящая техника.</span></h2></div><button id="garage-back" class="secondary-button">${svg('arrow','back-arrow')} В меню</button></div><div class="garage-layout"><div id="garage-list" class="vehicle-list">${Object.values(VEHICLES).map((v,i)=>`<button data-vehicle="${v.id}" class="vehicle-card ${garageVehicle===v.id?'viewing':''}" aria-pressed="${garageVehicle===v.id}"><span class="vehicle-number">0${i+1}</span><img src="${artUrl(`garage-${v.id}`)}" alt=""><span><strong>${v.name}</strong><small>${progress.state.selectedVehicle===v.id?'ВЫБРАНА':progress.state.ownedVehicles.includes(v.id)?'В ГАРАЖЕ':`${v.price} МОНЕТ`}</small></span>${svg(progress.state.ownedVehicles.includes(v.id)?'check':'lock')}</button>`).join('')}<div class="garage-tip">${svg('bolt')}<p>Новая техника меняет способ разрушения. Выбери свой стиль, а не просто больше силы.</p></div></div><div class="workshop-stage"><div class="workshop-tag">SMASH CITY <span>МОТОРНЫЙ ОТСЕК / 0${Object.keys(VEHICLES).indexOf(garageVehicle)+1}</span></div><img class="workshop-room" src="${artUrl('garage-room')}" alt="Уютная мастерская с инструментами"><img id="vehicle-preview" class="workshop-vehicle ${garageVehicle}" src="${artUrl(`garage-${garageVehicle}`)}" alt="${selected.name}"><div class="workshop-plate">${svg('garage')} ${selected.name.toUpperCase()}</div></div><div class="vehicle-details"><div class="eyebrow">${owned?'ГОТОВА К ВЫЕЗДУ':'НОВЫЙ СПОСОБ РАЗРУШЕНИЯ'}</div><h3>${selected.name}</h3><div class="vehicle-subtitle">${selected.subtitle}</div><p>${selected.description}</p><div class="ability-spec"><span>${svg('bolt')} ${selected.abilityName}</span><small>Перезарядка ${selected.cooldown.toFixed(1)} с</small></div><div class="vehicle-traits"><span>Темп движения</span><div>${[1,2,3].map(n=>`<i class="${n<=(selected.id==='dozer'?3:selected.id==='excavator'?2:1)?'filled':''}"></i>`).join('')}</div></div><div class="vehicle-price"><small>${owned?'В ТВОЁМ ГАРАЖЕ':'СТОИМОСТЬ'}</small><strong>${owned?'Куплена':`${selected.price} ◇`}</strong></div><button id="vehicle-action" class="play-button" ${active?'disabled':''}>${active?'Выбрана':owned?'Выбрать технику':`Купить за ${selected.price}`} ${svg(active?'check':owned?'arrow':'coin')}</button>${!owned&&sim.balance<selected.price?`<div class="funds-note">Не хватает ${selected.price-sim.balance} монет. Заработай их в заданиях.</div>`:''}<button id="garage-missions" class="text-button">К заданиям ${svg('levels')}</button></div></div>`;
+  $('#garage-back').onclick=menu;$('#garage-missions').onclick=openLevels;
+  document.querySelectorAll('[data-vehicle]').forEach(button=>button.onclick=()=>{garageVehicle=button.dataset.vehicle;renderGarage();});
+  $('#vehicle-action').onclick=()=>{
+    if(!progress.state.ownedVehicles.includes(garageVehicle)){
+      progress.state.balance=sim.balance;
+      const result=progress.purchase(garageVehicle);
+      if(!result.ok){toast(result.reason==='insufficient-funds'?'Недостаточно монет. Попробуй ещё одно задание.':'Эта техника уже в гараже.');return;}
+      sim.balance=progress.state.balance;
+      audio.init();audio.play('coin');
+      toast(`${VEHICLES[garageVehicle].name} теперь в твоём гараже!`);
+    }
+    progress.selectVehicle(garageVehicle);save();renderGarage();
+  };
+}
+function openLevels(){
+  if(!enterHub('levels'))return;
+  districtFilter=getMission(activeMissionId).district;
+  $('#levels-screen').classList.remove('hidden');renderLevels();
+}
+function renderLevels(){
+  const district=DISTRICTS[districtFilter],districtOpen=progress.state.unlockedDistricts.includes(districtFilter);
+  $('#levels-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">НОВАЯ СМЕНА — НОВЫЙ РЕКОРД</div><h2>Маленький город.<br><span>Большая работа.</span></h2></div><button id="levels-back" class="secondary-button">${svg('arrow','back-arrow')} В меню</button></div><div class="level-toolbar"><div class="district-tabs">${Object.values(DISTRICTS).map(d=>`<button data-district="${d.id}" class="${d.id===districtFilter?'active':''}" aria-pressed="${d.id===districtFilter}">${svg(progress.state.unlockedDistricts.includes(d.id)?'levels':'lock')}${d.name}</button>`).join('')}</div><button id="levels-garage" class="selected-machine">${svg('garage')} ${VEHICLES[progress.state.selectedVehicle].name} ${svg('arrow')}</button></div><div class="district-description"><p>${district.description}</p><small>${districtOpen?'Звёзды: за выполнение, быстрый и отличный результат.':'Откроется после задания «Срочный снос».'}</small></div><div class="mission-grid">${MISSIONS.filter(m=>m.district===districtFilter).map(m=>{
+    const unlocked=progress.isLevelUnlocked(m.id),record=progress.state.records[m.id];
+    return `<article data-mission="${m.id}" class="mission-tile ${unlocked?'':'locked'}"><div class="mission-illustration ${m.district}"><span class="mission-tile-number">0${m.id}</span><img src="${artUrl(`${m.district==='town'?(m.id===1?'shed':'house'):(m.id===3?'tower':'warehouse')}-0`)}" alt=""><div class="tile-stars">${[1,2,3].map(n=>`<span class="${n<=(record?.stars||0)?'earned':''}">${svg('star')}</span>`).join('')}</div>${!unlocked?`<span class="tile-lock">${svg('lock')}</span>`:''}</div><div class="mission-tile-body"><small>ЗАДАНИЕ 0${m.id} / ${m.objective==='chain'?'ЦЕПНАЯ РЕАКЦИЯ':m.objective==='destroy'?'СКОРОСТНОЙ СНОС':'ПОГОНЯ ЗА ОЧКАМИ'}</small><h3>${m.title}</h3><p>${m.description}</p><div class="mission-numbers"><span>${svg('clock')}${m.duration} с</span><span>${svg('coin')}Бонус ${record?Math.floor(m.reward*.25):m.reward}</span></div><div class="mission-record">${record?`<span>Рекорд <b>${record.bestScore.toLocaleString('ru')}</b></span><span>Комбо <b>×${record.bestCombo}</b></span><span>Время <b>${record.bestTime.toFixed(1)} с</b></span><span>Побед <b>${record.wins}</b></span>`:'<span>Твой первый рекорд ещё впереди.</span>'}</div><div class="star-rules">${svg('star')} 2 звезды ≤ ${m.starTimes[0]} с · 3 звезды ≤ ${m.starTimes[1]} с</div><button data-start-mission="${m.id}" class="play-button" ${unlocked?'':'disabled'}>${unlocked?(record?'Побить рекорд':'Начать смену'):`Пройди задание ${m.id-1}`} ${svg(unlocked?'play':'lock')}</button></div></article>`;
+  }).join('')}</div><div class="levels-footer">${svg('coin')} Первое прохождение даёт полный бонус. При повторе: 45% монет за здания и 25% бонуса. Рекорды и звёзды сохраняются.</div>`;
+  $('#levels-back').onclick=menu;$('#levels-garage').onclick=openGarage;
+  document.querySelectorAll('[data-district]').forEach(button=>button.onclick=()=>{districtFilter=button.dataset.district;renderLevels();});
+  document.querySelectorAll('[data-start-mission]').forEach(button=>button.onclick=()=>start(Number(button.dataset.startMission)));
 }
