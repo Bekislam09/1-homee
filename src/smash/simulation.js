@@ -52,6 +52,44 @@ function inCircle(x, y, radius, building) {
   return Math.hypot(x - bx, y - by) <= radius + EPSILON;
 }
 
+function rayBox(x, y, dx, dy, reach, left, top, right, bottom) {
+  let entry = 0, exit = reach;
+  for (let axis = 0; axis < 2; axis++) {
+    const origin = axis ? y : x, direction = axis ? dy : dx;
+    const min = axis ? top : left, max = axis ? bottom : right;
+    if (Math.abs(direction) < EPSILON) {
+      if (origin < min || origin > max) return Infinity;
+    } else {
+      const first = (min - origin) / direction, last = (max - origin) / direction;
+      entry = Math.max(entry, Math.min(first, last));
+      exit = Math.min(exit, Math.max(first, last));
+      if (entry > exit + EPSILON) return Infinity;
+    }
+  }
+  return entry;
+}
+
+/** Exact swept circle/AABB entry: two edge strips and four rounded corners. */
+function bucketEntry(x, y, dx, dy, reach, radius, building) {
+  const left = building.x - building.w / 2, right = building.x + building.w / 2;
+  const top = building.y - building.d / 2, bottom = building.y + building.d / 2;
+  if (inCircle(x, y, radius, building)) return 0;
+  let entry = Math.min(
+    rayBox(x, y, dx, dy, reach, left - radius, top, right + radius, bottom),
+    rayBox(x, y, dx, dy, reach, left, top - radius, right, bottom + radius),
+  );
+  for (let corner = 0; corner < 4; corner++) {
+    const cx = corner & 1 ? right : left, cy = corner & 2 ? bottom : top;
+    const ox = x - cx, oy = y - cy;
+    const along = ox * dx + oy * dy;
+    const discriminant = along * along - (ox * ox + oy * oy - radius * radius);
+    if (discriminant < 0) continue;
+    const distance = -along - Math.sqrt(discriminant);
+    if (distance >= 0 && distance <= reach + EPSILON) entry = Math.min(entry, distance);
+  }
+  return entry;
+}
+
 /** Circle/AABB contact normal points out of the building toward the player. */
 function contact(player, building) {
   const left = building.x - building.w / 2, right = building.x + building.w / 2;
@@ -76,13 +114,15 @@ export class Simulation {
     this.reset();
   }
 
-  reset({ missionId = 1, vehicleId = 'dozer', coinScale = 1 } = {}) {
-    this.mission = getMission(missionId);
+  reset({ missionId = 1, vehicleId = 'dozer', coinScale = 1, mode = 'mission', district } = {}) {
+    this.mode = mode === 'free' ? 'free' : 'mission';
+    const mission = getMission(missionId);
+    this.mission = this.freeMode ? { ...mission, district: district === 'industrial' ? 'industrial' : 'town' } : mission;
     this.vehicleId = Object.hasOwn(VEHICLES, vehicleId) ? vehicleId : 'dozer';
     this.vehicle = VEHICLES[this.vehicleId];
-    this.coinScale = Number.isFinite(coinScale) ? clamp(coinScale, 0, 1) : 1;
+    this.coinScale = this.freeMode ? 0 : Number.isFinite(coinScale) ? clamp(coinScale, 0, 1) : 1;
     this.phase = 'menu';
-    this.timeLeft = this.mission.duration;
+    this.timeLeft = this.freeMode ? Infinity : this.mission.duration;
     this.elapsed = 0;
     this.runId = null;
     this.score = 0;
@@ -105,6 +145,7 @@ export class Simulation {
     this._ramHeld = false;
     this._abilityImpacted = false;
     this.attackTarget = null;
+    this._pointTargetId = null;
     this._collapses = [];
     this._chainSerial = 0;
     return this;
@@ -119,6 +160,8 @@ export class Simulation {
 
   get goal() { return this.mission.target; }
 
+  get freeMode() { return this.mode === 'free'; }
+
   get progress() {
     if (this.mission.objective === 'destroy') return this.destroyed;
     if (this.mission.objective === 'chain') return this.bestChain;
@@ -127,7 +170,7 @@ export class Simulation {
 
   result() {
     return {
-      runId: this.runId, missionId: this.mission.id, won: this.phase === 'won',
+      runId: this.runId, missionId: this.mission.id, won: !this.freeMode && this.phase === 'won',
       score: this.score, bestCombo: this.bestCombo, bestChain: this.bestChain,
       destroyed: this.destroyed, elapsed: this.elapsed, coins: this.coins,
     };
@@ -148,6 +191,20 @@ export class Simulation {
       y: p.y + Math.sin(p.heading) * this.vehicle.reach,
       radius: this.vehicle.radius, heading: p.heading,
     };
+    if (this.vehicleId === 'excavator') {
+      const nearest = this._nearestBucketTarget();
+      this._pointTargetId = nearest?.building.id ?? null;
+      if (nearest && !inCircle(this.attackTarget.x, this.attackTarget.y, this.vehicle.radius, nearest.building)) {
+        // Keep an already valid contact pose. A closer obstacle stops the
+        // bucket before its nominal endpoint, including narrow buildings.
+        let reach = Math.min(this.vehicle.reach, nearest.distance + this.vehicle.radius);
+        if (!inCircle(p.x + Math.cos(p.heading) * reach, p.y + Math.sin(p.heading) * reach, this.vehicle.radius, nearest.building)) {
+          reach = nearest.distance;
+        }
+        this.attackTarget.x = p.x + Math.cos(p.heading) * reach;
+        this.attackTarget.y = p.y + Math.sin(p.heading) * reach;
+      }
+    }
     if (this.vehicleId === 'dozer') this.events.push({ type: 'ram', x: p.x, y: p.y });
     this.events.push(this._abilityEvent('ability-start'));
     return true;
@@ -157,6 +214,17 @@ export class Simulation {
     const target = this.attackTarget;
     return { type, vehicleId: this.vehicleId, targetX: target.x, targetY: target.y,
       radius: target.radius, heading: target.heading };
+  }
+
+  _nearestBucketTarget() {
+    const p = this.player, dx = Math.cos(this._ramHeading), dy = Math.sin(this._ramHeading);
+    let nearest = null;
+    for (const building of this.buildings) {
+      if (building.hp <= 0) continue;
+      const distance = bucketEntry(p.x, p.y, dx, dy, this.vehicle.reach, this.vehicle.radius, building);
+      if (Number.isFinite(distance) && (!nearest || distance < nearest.distance)) nearest = { building, distance };
+    }
+    return nearest;
   }
 
   update(dt, input = {}) {
@@ -201,9 +269,16 @@ export class Simulation {
         if (!this._abilityImpacted && p.abilityElapsed + EPSILON >= this.vehicle.impactAt) {
           this._abilityImpacted = true;
           this.events.push(this._abilityEvent('ability-impact'));
-          for (const building of this.buildings) {
-            if (building.hp > 0 && inCircle(this.attackTarget.x, this.attackTarget.y, this.attackTarget.radius, building)) {
-              this._damage(building, this.vehicle.damage, true);
+          if (this.vehicleId === 'excavator') {
+            const nearest = this._nearestBucketTarget();
+            // The locked point attack cannot jump to a second building if a
+            // pending collapse removed its original target during the windup.
+            if (nearest?.building.id === this._pointTargetId) this._damage(nearest.building, this.vehicle.damage, true);
+          } else {
+            for (const building of this.buildings) {
+              if (building.hp > 0 && inCircle(this.attackTarget.x, this.attackTarget.y, this.attackTarget.radius, building)) {
+                this._damage(building, this.vehicle.damage, true);
+              }
             }
           }
         }
@@ -293,7 +368,7 @@ export class Simulation {
     if ((building.type === 'tower' || building.collapseRadius) && chain.count < CHAIN_LIMIT) {
       this._collapses.push({ building, chain, at: this.elapsed + (building.type === 'tower' ? 0.45 : 0.2) });
     }
-    if (this.progress >= this.goal && this.phase === 'playing') {
+    if (!this.freeMode && this.progress >= this.goal && this.phase === 'playing') {
       this.phase = 'won';
       this.events.push({ type: 'win', x: this.player.x, y: this.player.y });
     }

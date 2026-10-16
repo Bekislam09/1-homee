@@ -9,9 +9,12 @@ const win = (missionId = 1, overrides = {}) => ({
 });
 
 test('new or malformed saves start safely with the free dozer and first district', () => {
-  const expected = { version: 2, balance: 0, settings: { sound: true, effects: true },
+  const expected = { version: 3, balance: 0,
+    settings: { sound: true, effects: true, shake: true, quality: 'high', language: null },
     ownedVehicles: ['dozer'], selectedVehicle: 'dozer', completedLevels: [],
-    unlockedDistricts: ['town'], records: {}, settledRuns: [] };
+    unlockedDistricts: ['town'], records: {}, settledRuns: [], achievements: [],
+    stats: { destroyed: 0, bestChain: 0 }, observedRuns: [], rewardedRuns: {},
+    daily: { lastDate: null, lastOrdinal: null, claimedDays: 0 } };
   for (const value of [null, undefined, [], 'invalid', { balance: -9 }, { balance: Infinity }]) {
     assert.deepEqual(cleanProgression(value), expected);
   }
@@ -24,7 +27,7 @@ test('sanitization rejects unowned selection and impossible progression while re
     records: { 1: { bestScore: -5, bestCombo: 4, bestTime: NaN, wins: -1, stars: 5 }, 4: { wins: 500 } },
     settledRuns: ['a', 'a', '', null] });
   assert.equal(state.balance, 987);
-  assert.deepEqual(state.settings, { sound: false, effects: false });
+  assert.deepEqual(state.settings, { sound: false, effects: false, shake: true, quality: 'high', language: null });
   assert.deepEqual(state.ownedVehicles, ['dozer', 'excavator']);
   assert.equal(state.selectedVehicle, 'dozer');
   assert.deepEqual(state.completedLevels, [1]);

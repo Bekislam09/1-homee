@@ -57,7 +57,7 @@ test('legacy save, real garage purchases, ownership guards and selected machine 
   await expect(page.locator('#ram strong')).toHaveText('УДАР ШАРОМ');
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);
-  expect(await inspect(page)).toMatchObject({ version: 2, balance: 50, selectedVehicle: 'wrecker', ownedVehicles: ['dozer', 'excavator', 'wrecker'] });
+  expect(await inspect(page)).toMatchObject({ version: 3, balance: 50, selectedVehicle: 'wrecker', ownedVehicles: ['dozer', 'excavator', 'wrecker'] });
   expect(errors).toEqual([]);
 });
 
@@ -159,7 +159,7 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
     // missions 1–2; their uninterrupted gameplay is covered by simulation tests.
     g.progress.completeRun({ runId: 'browser-fixture-1', missionId: 1, won: true, score: 1000, destroyed: 3, bestCombo: 3, bestChain: 1, elapsed: 30 });
     g.progress.completeRun({ runId: 'browser-fixture-2', missionId: 2, won: true, score: 3000, destroyed: 8, bestCombo: 3, bestChain: 1, elapsed: 50 });
-    localStorage.setItem('smash-city-v2', JSON.stringify(g.progress.state));
+    localStorage.setItem('smash-city-v3', JSON.stringify(g.progress.state));
   });
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);

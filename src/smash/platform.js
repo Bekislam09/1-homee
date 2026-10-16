@@ -1,6 +1,7 @@
 import { cleanProgression } from './progression.js';
 
-export const STORAGE_KEY = 'smash-city-v2';
+export const STORAGE_KEY = 'smash-city-v3';
+export const PREVIOUS_STORAGE_KEY = 'smash-city-v2';
 export const LEGACY_STORAGE_KEY = 'smash-city-v1';
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -30,12 +31,13 @@ export class LocalPlatform extends PlatformAdapter {
       const storage = this.getStorage();
       if (!storage) throw new Error('Local storage is unavailable');
       let corrupt = false;
-      for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+      for (const [key, version] of [[STORAGE_KEY, 3], [PREVIOUS_STORAGE_KEY, 2], [LEGACY_STORAGE_KEY, 1]]) {
         const raw = storage.getItem(key);
         if (raw === null) continue;
         try {
           const saved = JSON.parse(raw);
-          if (!isObject(saved) || (key === STORAGE_KEY && saved.version !== 2)) {
+          if (!isObject(saved) || (key !== LEGACY_STORAGE_KEY && saved.version !== version)
+            || (key === LEGACY_STORAGE_KEY && saved.version !== undefined && saved.version !== 1)) {
             corrupt = true;
             continue;
           }
@@ -64,6 +66,8 @@ export class LocalPlatform extends PlatformAdapter {
       const patch = isObject(data) ? data : {};
       const next = cleanProgression({ ...previous, ...patch,
         settings: { ...previous.settings, ...(isObject(patch.settings) ? patch.settings : {}) },
+        stats: { ...previous.stats, ...(isObject(patch.stats) ? patch.stats : {}) },
+        daily: { ...previous.daily, ...(isObject(patch.daily) ? patch.daily : {}) },
       });
       storage.setItem(STORAGE_KEY, JSON.stringify(next));
       this.state = next;

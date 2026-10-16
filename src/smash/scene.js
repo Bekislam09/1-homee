@@ -1,5 +1,15 @@
 import Phaser from 'phaser';
-import { iso, createTextures, drawGround, createDecor, ART_ANCHOR, getVehicleTextureOffset } from './art.js';
+import { iso, createTextures, drawGround, createDecor, ART_ANCHOR, getVehicleTextureOffset,ensureAttackTexture } from './art.js';
+import { t } from './i18n.js';
+
+const FRAGMENT_COLORS = {
+  shed: [0xffdf9a, 0xf4bc80, 0xe9d6ad],
+  kiosk: [0xf5b899, 0xffe3a6, 0xc5dbce],
+  house: [0xf1cbbb, 0xe1e5c5, 0xbacfd9],
+  warehouse: [0xd9ad89, 0xf4d7b0, 0xa4c4c4],
+  tower: [0xe9bb99, 0xc9b9a6, 0xf1d7ad],
+  containers: [0xa4c8c0, 0xe9be8b, 0xa6c4d3],
+};
 
 export class CityScene extends Phaser.Scene {
   constructor(simulation, controls) {
@@ -105,8 +115,9 @@ export class CityScene extends Phaser.Scene {
     this.layout();
   }
 
-  emit(type, x, y, count) {
+  emit(type, x, y, count, colors = null) {
     if (!this.controls.effects) count = Math.min(count, 3);
+    if (this.controls.quality === 'low') count = Math.max(1, Math.ceil(count * .45));
     for (let i = 0; i < count; i++) {
       const p = this.particles[this.effectIndex++ % this.particles.length];
       const angle = Math.random() * Math.PI * 2;
@@ -115,13 +126,14 @@ export class CityScene extends Phaser.Scene {
       p.vx = Math.cos(angle) * force; p.vy = Math.sin(angle) * force;
       p.vz = 45 + Math.random() * 120; p.life = p.max = .6 + Math.random() * .6;
       p.size = type === 'dust' ? .7 + Math.random() * .7 : .6 + Math.random() * .55;
-      p.view.setTexture(type).setScale(p.size).setAlpha(1).setVisible(true).setAngle(Math.random() * 360);
+      p.view.setTexture(type).setTint(colors ? colors[i % colors.length] : 0xffffff)
+        .setScale(p.size).setAlpha(1).setVisible(true).setAngle(Math.random() * 360);
     }
   }
 
-  floatLabel(x, y, text, color = '#fff0b0') {
+  floatLabel(x, y, text, color = '#fff0b0', height = 90) {
     const label = this.labels[this.labelIndex++ % this.labels.length];
-    const p = iso(x, y, 90);
+    const p = iso(x, y, height);
     label.life = 1.2; label.y = p.y;
     label.view.setPosition(p.x, p.y).setText(text).setColor(color).setAlpha(1).setVisible(true);
   }
@@ -134,20 +146,27 @@ export class CityScene extends Phaser.Scene {
         this.emit('spark', this.sim.player.x, this.sim.player.y, 8);
       } else if (e.type === 'ability-impact') {
         this.emit('spark',e.targetX,e.targetY,7);this.emit('dust',e.targetX,e.targetY,9);
-        if(this.controls.effects)this.cameras.main.shake(100,.0015);
+        if(this.controls.effects && this.controls.shake !== false)this.cameras.main.shake(100,.0015);
       } else if(e.type==='chain'){
-        if(e.count>1)this.floatLabel(e.x,e.y,`ЦЕПЬ ×${e.count}`,'#fff1c7');
+        if(e.count>1)this.floatLabel(e.x,e.y,t('chainLabel',{count:e.count}),'#fff1c7',150);
       } else if (e.type === 'hit') {
         if (v) v.shake = .24;
-        this.emit('chip', e.x, e.y, 6);
+        this.emit('chip', e.x, e.y, 6, FRAGMENT_COLORS[this.sim.buildings[index]?.type]);
         this.emit('dust', e.x, e.y, 4);
       } else if (e.type === 'destroy') {
         if(v){v.collapseDuration=this.sim.buildings[index]?.type==='tower'?.65:.32;v.collapseTime=v.collapseDuration;v.collapse.setVisible(true).setScale(1).setRotation(0).setAlpha(1);}
-        this.emit('chip', e.x, e.y, 16);
+        const type = this.sim.buildings[index]?.type;
+        this.emit('chip', e.x, e.y, 16, FRAGMENT_COLORS[type]);
         this.emit('dust', e.x, e.y, 12);
-        this.emit('coin', e.x, e.y, 6);
-        this.floatLabel(e.x, e.y, `+${e.coins ?? 0}  ◇`);
-        if (this.controls.effects && this.sim.buildings[index]?.type === 'house') this.cameras.main.shake(120, .002);
+        this.floatLabel(e.x, e.y, t('pointsReward',{points:e.points ?? 0}), '#fff1b7', 112);
+        if (e.coins > 0) {
+          this.emit('coin', e.x, e.y, 6);
+          this.floatLabel(e.x, e.y, t('coinsReward',{coins:e.coins}), '#ffe38b', 82);
+        }
+        if (type === 'house' || type === 'warehouse' || type === 'tower') {
+          this.floatLabel(e.x, e.y, t('superHit'), '#fff8d5', 190);
+          if (this.controls.effects && this.controls.shake !== false) this.cameras.main.shake(120, .002);
+        }
       }
     }
     this.controls.onEvents?.(events);
@@ -187,7 +206,7 @@ export class CityScene extends Phaser.Scene {
     const treadFrame = moving && Math.floor(this.elapsed * 14) % 2 ? '-moving' : '';
     const vehicleId=this.sim.vehicleId||'dozer';
     let texture=`${vehicleId}-${direction}${treadFrame}`;
-    if(!menu&&vehicleId!=='dozer'&&player.ramTime>0){const fraction=(player.abilityElapsed||0)/(player.abilityDuration||1);const phase=fraction<.2?0:fraction<.5-1e-6?1:fraction<.7?2:fraction<.9?3:4;texture=`${vehicleId}-${direction}-attack-${phase}`;}
+    if(!menu&&vehicleId!=='dozer'&&player.ramTime>0){const fraction=(player.abilityElapsed||0)/(player.abilityDuration||1);const phase=fraction<.2?0:fraction<.5-1e-6?1:fraction<.7?2:fraction<.9?3:4;const reach=player.attackTarget?Math.hypot(player.attackTarget.x-player.x,player.attackTarget.y-player.y):115;texture=ensureAttackTexture(this,vehicleId,direction,phase,reach);}
     this.dozer.setTexture(texture).setPosition(p.x, p.y + getVehicleTextureOffset(vehicleId) + vibration).setDepth(x + y + 1);
     const target=player.attackTarget;
     if(active&&target&&vehicleId!=='dozer'){
@@ -196,8 +215,9 @@ export class CityScene extends Phaser.Scene {
     const squash = active && player.ramTime > 0 ? 1.035 : 1;
     this.dozer.setScale(squash);
     this.shadow.setPosition(p.x, p.y + 5).setDepth(x + y - 1);
-    if (moving && this.controls.effects && Math.floor(this.elapsed * 15) !== this.lastDust) {
-      this.lastDust = Math.floor(this.elapsed * 15);
+    const dustRate = this.controls.quality === 'low' ? 7 : 15;
+    if (moving && this.controls.effects && Math.floor(this.elapsed * dustRate) !== this.lastDust) {
+      this.lastDust = Math.floor(this.elapsed * dustRate);
       this.emit('dust', x - Math.cos(angle) * 30, y - Math.sin(angle) * 30, 1);
     }
 

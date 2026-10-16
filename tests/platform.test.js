@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LocalPlatform, STORAGE_KEY, LEGACY_STORAGE_KEY } from '../src/smash/platform.js';
+import { LocalPlatform, STORAGE_KEY, PREVIOUS_STORAGE_KEY, LEGACY_STORAGE_KEY } from '../src/smash/platform.js';
 import { cleanProgression, Progression } from '../src/smash/progression.js';
 
 function memoryStorage(entries = []) {
@@ -15,7 +15,7 @@ test('wallet, progression and only real settings persist separately from the pre
   assert(p.save({ balance: 145, settings: { sound: false, effects: true, quality: 'high' } }));
   assert.deepEqual(new LocalPlatform(storage).load(), cleanProgression({ balance: 145, settings: { sound: false, effects: true } }));
   assert.equal(JSON.parse(storage.data.get('loot-escape-v1')).balance, 999);
-  assert.equal(JSON.parse(storage.data.get(STORAGE_KEY)).version, 2);
+  assert.equal(JSON.parse(storage.data.get(STORAGE_KEY)).version, 3);
 });
 
 test('version one migration preserves exact wallet and settings and leaves the old save untouched', () => {
@@ -23,9 +23,9 @@ test('version one migration preserves exact wallet and settings and leaves the o
   const storage = memoryStorage([[LEGACY_STORAGE_KEY, legacy]]);
   const p = new LocalPlatform(storage);
   const migrated = p.load();
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.balance, 123456);
-  assert.deepEqual(migrated.settings, { sound: false, effects: false });
+  assert.deepEqual(migrated.settings, { sound: false, effects: false, shake: true, quality: 'high', language: null });
   assert.deepEqual(migrated.ownedVehicles, ['dozer']);
   assert.deepEqual(migrated.completedLevels, []);
   assert(p.save(migrated));
@@ -33,12 +33,13 @@ test('version one migration preserves exact wallet and settings and leaves the o
   assert.deepEqual(new LocalPlatform(storage).load(), migrated);
 });
 
-test('valid version two takes priority, corrupt or unsupported version two falls back to version one', () => {
+test('valid version two migrates, corrupt or unsupported new saves fall back to version one', () => {
   const legacy = JSON.stringify({ balance: 120, settings: { sound: false } });
-  const storage = memoryStorage([[LEGACY_STORAGE_KEY, legacy], [STORAGE_KEY, JSON.stringify({ version: 2, balance: 77 })]]);
+  const storage = memoryStorage([[LEGACY_STORAGE_KEY, legacy], [PREVIOUS_STORAGE_KEY, JSON.stringify({ version: 2, balance: 77 })]]);
   assert.equal(new LocalPlatform(storage).load().balance, 77);
   for (const broken of ['{broken', 'null', '[]', '{"version":99,"balance":10000}']) {
     storage.data.set(STORAGE_KEY, broken);
+    storage.data.set(PREVIOUS_STORAGE_KEY, broken);
     const p = new LocalPlatform(storage);
     assert.equal(p.load().balance, 120);
     assert.equal(p.lastLoadSucceeded, true);
@@ -56,7 +57,7 @@ test('partial legacy-style saves preserve every new field and individual setting
   const fresh = new LocalPlatform(p.storage);
   assert(fresh.save({ balance: 33, settings: { sound: false } }));
   const loaded = new LocalPlatform(p.storage).load();
-  assert.deepEqual(loaded, { ...previous, balance: 33, settings: { sound: false, effects: true } });
+  assert.deepEqual(loaded, { ...previous, balance: 33, settings: { ...previous.settings, sound: false } });
 });
 
 test('corrupt, invalid and blocked storage never break gameplay', () => {

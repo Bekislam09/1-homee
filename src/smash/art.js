@@ -370,7 +370,7 @@ function vehicle(ctx, width, height, angle, treadPhase = 0) {
   }
 }
 
-function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null) {
+function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null,toolReach=115) {
   ctx.translate(width/2,height-ART_ANCHOR.machine);
   ellipse(ctx,2,8,55,22,'rgba(40,61,54,.16)');
   ellipse(ctx,0,6,43,16,'rgba(40,61,54,.09)');
@@ -437,7 +437,8 @@ function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null) {
     const poses=attackFrame===null?[82,36,38,83]:[
       [56,86,30,105],[88,65,48,99],[115,12,59,73],[94,25,43,79],[82,36,38,83],
     ][attackFrame];
-    const [tx,tz,ex,ez]=poses;
+    const [poseX,tz,poseElbow,ez]=poses;
+    const ratio=toolReach/115;const tx=poseX*ratio,ex=poseElbow*Math.max(.5,ratio);
     const shoulder=[10,11,40],elbow=[ex,11,ez],wrist=[tx-20,11,tz+13];
     // Two articulated segments, chrome rams and a toothed bucket.
     beam(shoulder,elbow,12,12);beam(elbow,wrist,9,10);
@@ -956,4 +957,16 @@ export function createDecor(scene,district='town') {
   add('cone',243,137,.7);add('cone',239,229,.7);
   add('bench',608,684,.64);
   return result;
+}
+
+// One dynamic canvas per direction bounds short-reach poses to eight textures.
+export function ensureAttackTexture(scene,id,direction,phase,reach=115){
+  const normal=`${id}-${direction}-attack-${phase}`;
+  if(id!=='excavator'||reach>=113)return normal;
+  const bounded=Math.max(30,Math.min(115,Math.round(reach/6)*6));
+  const key=`excavator-${direction}-short`;
+  let canvas=scene.textures.exists(key)?scene.textures.get(key):scene.textures.createCanvas(key,360,320);
+  const stamp=`${phase}/${bounded}`;
+  if(canvas.smashPose!==stamp){const ctx=canvas.getContext();ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,360,320);machine(ctx,360,320,direction*Math.PI/4,id,0,phase,bounded);ctx.restore();canvas.refresh();canvas.smashPose=stamp;}
+  return key;
 }
