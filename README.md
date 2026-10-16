@@ -1,70 +1,39 @@
-# Getting Started with Create React App
+# Укради и уезжай! / Loot & Escape
+Первая локальная версия 3D-аркады на Three.js и Vite. Всё окружение, автомобили и звук генерируются локально; CDN, ключи API и сервер не нужны. Старые React-файлы сохранены, но не входят в новый entry point `index.html`.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Запуск
+Node.js 22.12+ (проверено на 24.19), npm 11.
+```sh
+npm ci --cache /tmp/loot-npm-cache
+npm run dev -- --port 5173
+```
+Production:
+```sh
+npm run build
+npm run preview -- --port 4173
+```
+## Миссия «Золотой трофей»
+Нажмите «Играть». Из гаража на юго-западе доезжайте до золотого маркера музея на востоке (мини-карта: север сверху). В радиусе 7 м нажмите E или контекстную кнопку. Трофей появится в кузове; начнётся погоня. Возвращайтесь к зелёному кольцу гаража, не заполнив шкалу задержания.
 
-## Available Scripts
+W/↑ — газ, S/↓ — тормоз и задний ход, A/D или ←/→ — руль, Space — ручник, E — трофей, Esc — пауза. Сенсорные кнопки поддерживают несколько касаний. Потеря фокуса ставит игру на паузу; продолжение вручную.
 
-In the project directory, you can run:
+Розыск увеличивается каждые 25 секунд до трёх машин. За каждые 15 секунд погони добавляется 100 монет, бонус ограничен 1000 (максимум 1500 за миссию). Вознаграждение и настройки сохраняются в localStorage; при запрете хранилища игра работает без сохранения. Звук начинается после действия пользователя. Три режима меняют DPR и тени.
 
-### `npm start`
+## Проверки
+```sh
+npm test
+npx playwright test
+```
+Playwright использует `/usr/bin/chromium`, можно задать `CHROMIUM_PATH`. Запускает Vite автоматически, если сервер не работает. Нужен Chromium с WebGL; в облаке проверено с программным SwiftShader.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- 8 тестов симуляции: управление, коллизии, 625 пар дорожных маршрутов, погоня, награда/розыск, задержание, сброс, непрерывно пройденная миссия без телепортаций.
+- 2 браузерных сценария: рендер, клавиатура, трофей, UI победы/поражения, повтор, настройки, стабильность числа GPU-ресурсов после 5 повторов; мобильное разрешение 390×844 с одновременными pointer-событиями.
+- Браузерные проверки доставки и задержания используют dev-only `/?test` для установки состояния; это не ручной полный заезд. Контроллер непрерывного маршрута проверяется отдельно в симуляции.
+- Production-сборка проходит. Производительность на настоящих телефонах и ноутбуке с 4 ГБ не измерена. Целевые 30/60 FPS не заявляются достигнутыми.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Ограничения и часть 2
+Это первая рабочая локальная версия, требующая дальнейшего игрового тестирования и художественной полировки. Город компактный, без пешеходов и трафика; модели процедурные. Навигация полиции использует дорожный BFS с упреждающей целью третьей машины; полноценное кооперативное перекрытие дорог ещё предстоит. Столкновения используют круг автомобиля и прямоугольники зданий; мелкий декор проезжаемый. Камера ограничивает прямую видимость по зданиям; все сложные угловые случаи не покрыты автоматизацией. Счётчики геометрий/текстур стабильны при повторе, но это не полный анализ утечек JS heap. Звук процедурный, без записанных эффектов. Мобильное устройство физически не тестировалось.
 
-### `npm test`
+Часть 2: баланс и длительные погони; более выразительные силуэты зданий и машин, дополнительные анимации; кооперативные блокировки полиции; расширенные camera/physics regression-тесты; профиль на реальных слабых устройствах и тесты мобильного multitouch через реальный ввод. Платформенные SDK, облачные сохранения и реклама относятся к части 3; адаптеры Yandex/CrazyGames являются интерфейсными заготовками и не изображают SDK или успешную рекламу.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+См. ARCHITECTURE.md и PLAN.md. Среда использует существующий checkout; отдельный Git worktree не нужен.

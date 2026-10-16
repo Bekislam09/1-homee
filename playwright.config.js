@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'./tests/browser',timeout:45000,workers:1,use:{baseURL:'http://localhost:5173',headless:true,launchOptions:{executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']},viewport:{width:1440,height:900}},webServer:{command:'npm run dev -- --port 5173',url:'http://localhost:5173',reuseExistingServer:true}});
