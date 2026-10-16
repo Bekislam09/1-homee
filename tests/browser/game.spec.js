@@ -1,3 +1,128 @@
-import {test,expect} from '@playwright/test';
-test('render, keyboard, pickup, delivery, replay, settings and stable resources',async({page})=>{const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/?test');await expect(page.locator('h1')).toContainText('Укради');await page.waitForFunction(()=>window.__game?.renderer.info.render.calls>0);await page.screenshot({path:'/tmp/loot-menu.png'});await page.click('#play');await page.locator('#play').evaluate(e=>e.blur());await page.keyboard.down('w');await page.waitForTimeout(1200);await page.keyboard.up('w');expect(await page.evaluate(()=>window.__game.sim.player.speed)).toBeGreaterThan(2);await page.evaluate(()=>{const g=window.__game;Object.assign(g.sim.player,{x:48,z:-30,speed:0,vx:0,vz:0});});await expect(page.locator('#interact')).toBeVisible();await page.keyboard.press('e');await expect(page.locator('#stars')).toContainText('★');expect(await page.evaluate(()=>window.__game.sim.phase)).toBe('chase');await page.screenshot({path:'/tmp/loot-chase.png'});await page.evaluate(()=>Object.assign(window.__game.sim.player,{x:-48,z:60,speed:0,vx:0,vz:0}));await expect(page.locator('#result-title')).toHaveText('Чистая работа!');await page.click('#replay');expect(await page.evaluate(()=>window.__game.sim.cops.length)).toBe(0);await page.click('#settings');await page.selectOption('#quality','low');expect(await page.evaluate(()=>window.__game.renderer.shadowMap.enabled)).toBe(false);await page.uncheck('#sound-check');expect(await page.evaluate(()=>window.__game.settings.sound)).toBe(false);await page.click('#close-settings');const baseline=await page.evaluate(()=>window.__game.renderer.info.memory);for(let i=0;i<5;i++){await page.evaluate(()=>window.__game.start());await page.waitForTimeout(80);}const final=await page.evaluate(()=>window.__game.renderer.info.memory);expect(final.geometries).toBe(baseline.geometries);expect(final.textures).toBe(baseline.textures);await page.evaluate(()=>{const g=window.__game;Object.assign(g.sim.player,{x:48,z:-30,speed:0,vx:0,vz:0});g.pickup();g.sim.capture=.999;Object.assign(g.sim.cops[0],{x:51,z:-30});g.sim.update(1/60);});await expect(page.locator('#result-title')).toHaveText('Погоня окончена');expect(errors).toEqual([]);});
-test('mobile viewport: simultaneous touch controls and context pickup',async({browser})=>{const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();await page.goto('/?test');await page.click('#play');await expect(page.locator('.touch')).toBeVisible();await page.dispatchEvent('[data-key="gas"]','pointerdown',{pointerId:1,pointerType:'touch'});await page.dispatchEvent('[data-key="left"]','pointerdown',{pointerId:2,pointerType:'touch'});await page.waitForTimeout(800);await page.dispatchEvent('[data-key="gas"]','pointerup',{pointerId:1,pointerType:'touch'});await page.dispatchEvent('[data-key="left"]','pointerup',{pointerId:2,pointerType:'touch'});expect(await page.evaluate(()=>window.__game.sim.player.speed)).toBeGreaterThan(0);await page.evaluate(()=>Object.assign(window.__game.sim.player,{x:48,z:-30,speed:0,vx:0,vz:0}));await page.click('#interact');expect(await page.evaluate(()=>window.__game.sim.phase)).toBe('chase');await page.screenshot({path:'/tmp/loot-mobile.png'});await context.close();});
+import { test, expect } from '@playwright/test';
+
+const ready = async page => {
+  await page.goto('/?test');
+  await page.waitForFunction(() => window.__smash?.scene?.dozer);
+  await expect(page.locator('#play')).toBeEnabled();
+};
+
+test('menu, real keyboard ram, damage effects, persistence, settings, pause and replay', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await ready(page);
+  await expect(page.locator('h1')).toContainText('SMASH');
+  await page.screenshot({ path: '/tmp/smash-menu.png' });
+  await page.click('#help');
+  await expect(page.locator('#help-title')).toBeVisible();
+  await page.click('#help-done');
+  await page.click('#play');
+  // The first shed is aligned with the initial bucket: this uses real input.
+  await page.keyboard.press('Space');
+  await expect(page.locator('#run-coins')).toHaveText('25');
+  expect(await page.evaluate(() => window.__smash.sim.buildings[0].hp)).toBe(0);
+  expect(await page.evaluate(() => window.__smash.scene.particles.filter(p => p.life > 0).length)).toBeGreaterThan(0);
+  await page.waitForFunction(() => window.__smash.sim.player.ramTime <= 0);
+  await page.keyboard.down('d');
+  const before = await page.evaluate(() => ({ x: window.__smash.sim.player.x, y: window.__smash.sim.player.y }));
+  await page.waitForTimeout(450);
+  await page.keyboard.up('d');
+  const after = await page.evaluate(() => ({ x: window.__smash.sim.player.x, y: window.__smash.sim.player.y }));
+  expect(after.x).toBeGreaterThan(before.x);
+  expect(after.y).toBeLessThan(before.y);
+  await page.keyboard.press('Escape');
+  const time = await page.evaluate(() => window.__smash.sim.timeLeft);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.__smash.sim.timeLeft)).toBe(time);
+  await page.click('#resume');
+  await page.click('#settings');
+  await page.uncheck('#sound-check');
+  await page.uncheck('#effects-check');
+  expect(await page.evaluate(() => window.__smash.settings)).toMatchObject({ sound: false, effects: false });
+  await page.click('#settings-done');
+  await page.screenshot({ path: '/tmp/smash-play.png' });
+  // Time-expiry UI is exercised by advancing a controlled dev-only timer.
+  await page.evaluate(() => window.__smash.sim.timeLeft = .02);
+  await expect(page.locator('#result-title')).toHaveText('Время вышло');
+  await page.click('#replay');
+  expect(await page.evaluate(() => window.__smash.sim.destroyed)).toBe(0);
+  expect(await page.evaluate(() => window.__smash.sim.balance)).toBe(25);
+  expect(await page.evaluate(() => window.__smash.sim.buildings.every(b => b.hp === b.maxHp))).toBe(true);
+  await page.reload();
+  await page.waitForFunction(() => window.__smash?.scene?.dozer);
+  await expect(page.locator('#balance')).toHaveText('25');
+  await page.click('#settings');
+  await expect(page.locator('#sound-check')).not.toBeChecked();
+  await expect(page.locator('#effects-check')).not.toBeChecked();
+  expect(errors).toEqual([]);
+});
+
+test('continuous in-browser mission through movement and collisions, results and stable replay resources', async ({ page }) => {
+  await ready(page);
+  await page.click('#play');
+  const result = await page.evaluate(() => {
+    const g = window.__smash, sim = g.sim, scene = g.scene;
+    // Faster than wall-clock, but only the public movement/ram inputs are used.
+    // Starting positions, durability and rewards are never edited.
+    const frame = input => { sim.update(1 / 60, input); scene.handleEvents(sim.events); };
+    const driveTo = (x, y) => {
+      for (let n = 0; n < 1200 && sim.phase === 'playing'; n++) {
+        const dx = x - sim.player.x, dy = y - sim.player.y, d = Math.hypot(dx, dy);
+        if (d < 6) break;
+        frame({ x: dx / d, y: dy / d });
+      }
+    };
+    const demolish = b => {
+      driveTo(b.x - 74, b.y);
+      for (let n = 0; n < 1000 && b.hp > 0 && sim.phase === 'playing'; n++) frame({ x: 1, y: 0, ram: sim.player.ramCooldown <= 0 });
+    };
+    demolish(sim.buildings[0]);
+    driveTo(290, 180);
+    demolish(sim.buildings[1]);
+    driveTo(510, 180);
+    demolish(sim.buildings[2]);
+    if (sim.phase === 'won') g.finish();
+    return { phase: sim.phase, score: sim.score, destroyed: sim.destroyed, balance: sim.balance, elapsed: 90 - sim.timeLeft };
+  });
+  expect(result.phase).toBe('won');
+  expect(result.score).toBeGreaterThanOrEqual(1000);
+  expect(result.destroyed).toBe(3);
+  await expect(page.locator('#result-title')).toHaveText('Уровень пройден!');
+  await page.screenshot({ path: '/tmp/smash-win.png' });
+  const count = await page.evaluate(() => ({ objects: window.__smash.scene.children.length, textures: window.__smash.game.textures.getTextureKeys().length }));
+  for (let n = 0; n < 5; n++) await page.evaluate(() => { window.__smash.start(); window.__smash.menu(); });
+  const after = await page.evaluate(() => ({ objects: window.__smash.scene.children.length, textures: window.__smash.game.textures.getTextureKeys().length }));
+  expect(after).toEqual(count);
+});
+
+test('portrait and landscape mobile: real simultaneous joystick and ram touches', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await ready(page);
+  await page.screenshot({ path: '/tmp/smash-mobile-menu.png' });
+  await page.click('#play');
+  await expect(page.locator('#joystick')).toBeVisible();
+  const joystick = await page.locator('#joystick').boundingBox(), ram = await page.locator('#ram').boundingBox();
+  const client = await context.newCDPSession(page);
+  const points = [{ x: joystick.x + joystick.width * .76, y: joystick.y + joystick.height * .5, id: 1 }, { x: ram.x + ram.width / 2, y: ram.y + ram.height / 2, id: 2 }];
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.__smash.controls.input.x)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__smash.controls.input.ram)).toBe(true);
+  expect(await page.evaluate(() => window.__smash.sim.player.ramCooldown)).toBeGreaterThan(0);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  expect(await page.evaluate(() => window.__smash.controls.input)).toEqual({ x: 0, y: 0, ram: false });
+  await page.screenshot({ path: '/tmp/smash-mobile.png' });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForFunction(() => window.__smash.game.scale.width === innerWidth && window.__smash.game.scale.height === innerHeight);
+  expect(await page.locator('#game canvas').evaluate(c => Math.round(c.getBoundingClientRect().width))).toBe(844);
+  await page.screenshot({ path: '/tmp/smash-landscape.png' });
+  const overlaps = await page.evaluate(() => {
+    const a = document.querySelector('#ram').getBoundingClientRect(), b = document.querySelector('#joystick').getBoundingClientRect();
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  });
+  expect(overlaps).toBe(false);
+  expect(errors).toEqual([]);
+  await context.close();
+});
