@@ -1,0 +1,62 @@
+/* Instruments for real objectives and navigation; share the construction-toy palette. */
+#hud .goal-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+#hud .goal-heading #hud-mission{font-size:12px;line-height:1.2;letter-spacing:0;max-width:70%;color:var(--ink);font-weight:500}
+#hud .goal-heading #block-progress{font-size:11px;letter-spacing:0;color:var(--muted);white-space:nowrap}
+#hud .objective-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#hud .objective-row #objective-label{font-size:12px;letter-spacing:0;color:var(--muted)}
+#hud .objective-row b{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+#hud .objective-row i{font-style:normal}
+#hud .goal-check{font-size:15px;color:var(--green);font-weight:600}
+#hud .progress-track>span.complete{background:var(--green);border-color:var(--green)}
+#hud .clearance-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:9px}
+#hud #clearance-progress{font-size:12px;margin:0;line-height:1.3}
+#hud .clearance-track{height:5px;margin-top:5px}
+#hud .clearance-track>span{background:var(--blue);border:0}
+#hud .site-map{position:fixed;top:198px;right:4%;width:166px;padding:10px;border:2px solid #a9c9df;border-radius:16px;background:#fffffff0;box-shadow:0 4px 0 #9ebbd46b;pointer-events:none}
+#hud .map-heading{display:flex;justify-content:space-between;align-items:center;gap:5px;font-size:12px;line-height:1.2}
+#hud .map-heading b{font-size:11px;font-weight:500;color:var(--muted)}
+#hud .site-map canvas{display:block;width:100%;height:auto;margin:5px 0}
+#hud .site-map small{display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;font-size:10px;color:var(--muted)}
+#hud .site-map small i{width:7px;height:7px;border:1px solid var(--ink);background:var(--yellow);border-radius:2px}
+#hud .site-map small span{color:#abc7d9}
+#menu .hero .hero-meta{flex-wrap:wrap;gap:6px 9px}
+#menu .hero-meta span:last-child{display:flex}
+#menu .hero-meta i:last-of-type{display:none}
+@media(max-width:760px){
+ #hud .goal-panel{padding:10px;width:calc(100% - 125px)}
+ #hud .goal-heading{align-items:start;margin-bottom:7px;gap:5px}
+ #hud .goal-heading #hud-mission{font-size:10px;max-width:65%;line-height:1.2}
+ #hud .goal-heading #block-progress{font-size:9px}
+ #hud .objective-row #objective-label{font-size:10px}
+ #hud .objective-row b,#hud .objective-row b>span{font-size:17px}
+ #hud .objective-row i{font-size:11px}
+ #hud .objective-row .goal-check{font-size:12px}
+ #hud #clearance-progress{font-size:10px}
+ #hud .clearance-row{margin-top:7px}
+ #hud .progress-track{height:6px;margin-top:7px}
+ #hud .clearance-track{height:4px;margin-top:4px}
+ #hud .site-map{top:auto;bottom:175px;width:128px;padding:8px;border-radius:13px}
+ #hud .map-heading{font-size:11px}#hud .map-heading b{font-size:10px}
+ #hud .site-map small{font-size:8px}
+ #hud .run-coins{top:154px}
+}
+@media(max-width:350px){
+ #hud .goal-panel{width:calc(100% - 110px);right:4%;padding:9px}
+ #hud .goal-heading #hud-mission{font-size:10px}
+ #hud .objective-row{gap:4px}#hud .objective-row #objective-label{font-size:9px}
+ #hud .objective-row b,#hud .objective-row b>span{font-size:15px}
+ #hud .objective-row i{font-size:10px}
+ #hud .site-map{bottom:157px;width:116px;padding:6px}
+}
+@media(max-height:500px) and (orientation:landscape){
+ #hud .goal-panel{width:290px;padding:9px 12px}
+ #hud .goal-heading{margin-bottom:5px}
+ #hud .goal-heading #hud-mission{font-size:10px}#hud .goal-heading #block-progress{font-size:10px}
+ #hud .objective-row #objective-label,#hud #clearance-progress{font-size:10px}
+ #hud .objective-row b,#hud .objective-row b>span{font-size:18px}
+ #hud .progress-track{height:5px;margin-top:5px}#hud .clearance-track{height:3px;margin-top:3px}
+ #hud .clearance-row{margin-top:5px}
+ #hud .site-map{top:135px;bottom:auto;width:108px;padding:6px}
+ #hud .map-heading{font-size:10px}#hud .map-heading b{font-size:9px}#hud .site-map small{font-size:7px}
+ #hud .run-coins{top:60px}
+}

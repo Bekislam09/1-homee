@@ -12,6 +12,41 @@ test('velocity reversals and released controls decelerate instead of jumping',()
  const s=new Simulation().start();Object.assign(s.player,{x:500,y:65});step(s,30,{x:1});const before=s.player.vx;
  s.update(1/60,{x:-1});assert(s.player.vx>0&&s.player.vx<before);step(s,60);assert.equal(s.player.speed,0);
 });
+test('a tap within the final 150ms of cooldown starts once as soon as the ability is ready',()=>{
+ const s=new Simulation().start({vehicleId:'excavator'});assert(s.useRam());step(s,148);
+ assert(s.player.ramCooldown>0&&s.player.ramCooldown<.15);
+ s.update(1/60,{ramPressed:true});assert(!s.events.some(e=>e.type==='ability-start'));
+ const events=step(s,10);assert.equal(events.filter(e=>e.type==='ability-start').length,1);
+ assert(s.player.ramTime>0);assert.equal(step(s,180).filter(e=>e.type==='ability-start').length,0);
+});
+test('early presses expire and holding a buffered press never repeats the ability',()=>{
+ const early=new Simulation().start({vehicleId:'excavator'});assert(early.useRam());step(early,140);
+ assert(early.player.ramCooldown>.15);early.update(1/60,{ramPressed:true});
+ assert.equal(step(early,180).filter(e=>e.type==='ability-start').length,0);
+ const held=new Simulation().start({vehicleId:'excavator'});assert(held.useRam());step(held,148);
+ held.update(1/60,{ram:true});
+ assert.equal(step(held,360,{ram:true}).filter(e=>e.type==='ability-start').length,1);
+});
+test('pending ability presses cannot leak through a restart or a block transition',()=>{
+ const pending=()=>{
+  const s=new Simulation().start({vehicleId:'excavator'});s.useRam();step(s,148);s.update(1/60,{ramPressed:true});
+  assert(s._abilityBuffer>0);return s;
+ };
+ const restarted=pending();restarted.start({vehicleId:'excavator'});
+ assert.equal(restarted._abilityBuffer,0);assert.equal(step(restarted,180).filter(e=>e.type==='ability-start').length,0);
+ const transitioned=pending();transitioned._sectorWait=.05;
+ const events=step(transitioned,180);assert.equal(transitioned.sector,1);assert.equal(transitioned._abilityBuffer,0);
+ assert.equal(events.filter(e=>e.type==='ability-start').length,0);
+});
+test('clearing a buffered press before pausing prevents an attack on resume',()=>{
+ const s=new Simulation().start({vehicleId:'excavator'});s.useRam();step(s,148);s.update(1/60,{ramPressed:true});
+ assert(s._abilityBuffer>0);const before={...s.player};
+ s.cancelBufferedAbility();assert.equal(s._abilityBuffer,0);assert.deepEqual(s.player,before);
+ // Pausing does not tick the simulation. Once updates resume, the old tap
+ // must not fire; a fresh deliberate press still works normally.
+ assert.equal(step(s,20).filter(e=>e.type==='ability-start').length,0);
+ s.update(1/60,{ramPressed:true});assert.equal(s.events.filter(e=>e.type==='ability-start').length,1);
+});
 const fixture=(id,x,y)=>({id,x,y,w:30,d:30,type:'house',hp:10,maxHp:10,points:100,reward:25,hitCooldown:0,lastRam:-1});
 test('road roller affects nearby structures once at drum impact and leaves distant buildings intact',()=>{
  const s=new Simulation().start({vehicleId:'roller'});s.buildings=[fixture('a',145,150),fixture('b',145,210),fixture('far',400,180)];s.useRam();

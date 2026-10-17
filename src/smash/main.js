@@ -5,8 +5,11 @@ import { LocalPlatform } from './platform.js';
 import { AudioSystem } from './audio.js';
 import './style.css';
 import './theme.css';
+import './play-ui.css';
+import {createMinimap} from './minimap.js';
 import './final-copy.js';
 import {GameLifecycle} from './lifecycle.js';
+import {ModalFocus} from './modal-focus.js';
 import {createPlatformAdapter,LocalPlatformAdapter} from './platform-adapters.js';
 import {AdController} from './ad-controller.js';
 import {ENGLISH_ONLY,t, setLocale, resolveLocale, achievementName,achievementText, getLocale, onLocaleChange, translateDOM, formatNumber, vehicleName, vehicleText, missionName, missionText, districtName, districtText} from './i18n.js';
@@ -89,7 +92,13 @@ $('#app').innerHTML = `
 <section id="levels-screen" class="subscreen hidden" data-i18n-aria-label="levelsAria" aria-label="${t('levelsAria')}"></section>
 <section id="hud" class="hud hidden" data-i18n-aria-label="hudAria" aria-label="${t('hudAria')}">
   <div class="timer-panel"><span class="timer-icon">${svg('clock')}</span><div><small data-i18n="timeLeft">${t('timeLeft')}</small><b id="timer">1:30</b></div></div>
-  <div class="goal-panel"><div><span id="hud-mission">${missionName(1).toUpperCase()}</span><b><span id="mission-progress">0</span><i id="mission-target"> / 1 000</i></b></div><div class="progress-track"><span id="score-progress"></span></div><small id="clearance-progress"></small></div>
+  <div class="goal-panel">
+    <div class="goal-heading"><span id="hud-mission">${missionName(1)}</span><span id="block-progress"></span></div>
+    <div class="objective-row"><span id="objective-label">Score target</span><b><span id="mission-progress">0</span><i id="mission-target"> / 1 000</i><span id="objective-check" class="goal-check hidden" aria-label="Complete">✓</span></b></div>
+    <div class="progress-track"><span id="score-progress"></span></div>
+    <div id="clearance-objective"><div class="clearance-row"><span id="clearance-progress"></span><span id="clearance-check" class="goal-check hidden" aria-label="Complete">✓</span></div><div class="progress-track clearance-track"><span id="clearance-fill"></span></div></div>
+  </div>
+  <aside id="site-map" class="site-map" aria-label="Current block map"><div class="map-heading"><span>Site map</span><b id="map-remaining"></b></div><canvas id="minimap" width="240" height="160" aria-hidden="true"></canvas><small><i></i>You <span>•</span> Blue: buildings</small></aside>
   <div class="run-coins"><small data-i18n="shiftCoins">${t('shiftCoins')}</small><b>${svg('coin')} <span id="run-coins">0</span></b></div>
   <div id="combo" class="combo hidden"><span data-i18n="comboLabel">${t('comboLabel')}</span><b>×<span id="combo-value">1</span></b><small data-i18n="comboMultiplier">${t('comboMultiplier')}</small></div>
   <div class="desktop-hint"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span><span data-i18n="moveHint">${t('moveHint')}</span><span class="hint-divider"></span><span class="key wide-key" data-i18n="spaceKey">${t('spaceKey')}</span><span data-i18n="ramHint">${t('ramHint')}</span></div>
@@ -99,8 +108,18 @@ $('#app').innerHTML = `
 </section>
 <button id="restore-map" class="secondary-button hidden" data-i18n="restoreMap">${t('restoreMap')}</button>
 <div id="toast" class="toast hidden" role="status"></div>
-<div id="pause-overlay" class="overlay hidden"><section class="modal pause-modal"><div class="modal-icon">${svg('pause')}</div><div class="eyebrow" data-i18n="pauseEyebrow">${t('pauseEyebrow')}</div><h2 data-i18n="pauseTitle">${t('pauseTitle')}</h2><p data-i18n="pauseDescription">${t('pauseDescription')}</p><button id="resume" class="play-button"><span data-i18n="resume">${t('resume')}</span> ${svg('play')}</button><button id="pause-menu" class="text-button" data-i18n="mainMenu">${t('mainMenu')}</button></section></div>
+<div id="pause-overlay" class="overlay hidden"><section class="modal pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="modal-icon">${svg('pause')}</div><div class="eyebrow" data-i18n="pauseEyebrow">${t('pauseEyebrow')}</div><h2 id="pause-title" data-i18n="pauseTitle">${t('pauseTitle')}</h2><p data-i18n="pauseDescription">${t('pauseDescription')}</p><button id="resume" class="play-button"><span data-i18n="resume">${t('resume')}</span> ${svg('play')}</button><button id="pause-menu" class="text-button" data-i18n="mainMenu">${t('mainMenu')}</button></section></div>
 <div id="dialog" class="overlay hidden"></div>`;
+
+const modalFocus = new ModalFocus($('#app'), [$('#pause-overlay'), $('#dialog')]);
+modalFocus.setCloseHandler($('#pause-overlay'), () => pause(false));
+
+function clearDialogPause() {
+  life.reason('settings', false, false);
+  life.reason('dialog', false, false);
+}
+
+const minimap=createMinimap($('#minimap'));
 
 function save() {
   progress.state.balance=sim.balance;
@@ -122,6 +141,7 @@ function toast(text) {
   toastTimeout = setTimeout(() => $('#toast').classList.add('hidden'), 3400);
 }
 function clearInput() {
+  sim.cancelBufferedAbility?.();
   keys.clear(); joystick.x = joystick.y = 0;
   ramPointer = joystickPointer = null;
   controls.input.x = controls.input.y = 0;
@@ -129,6 +149,11 @@ function clearInput() {
   controls.ramQueued = false;
   $('#joystick-stick').style.transform = 'translate(0px, 0px)';
   $('#ram').classList.remove('pressed');
+}
+function focusGame() {
+  modalFocus.sync();
+  $('#game').tabIndex = -1;
+  $('#game').focus({ preventScroll: true });
 }
 function updateInput() {
   let sx = joystick.x, sy = joystick.y;
@@ -158,19 +183,19 @@ function start(missionId=activeMissionId) {
   activeMissionId=missionId;lastSettlement=null;
   audio.init();
   sim.start({missionId,vehicleId:progress.state.selectedVehicle,coinScale:progress.coinScale(missionId)});
-  controls.screen = 'playing';life.resetUserPause();
+  controls.screen = 'playing';clearDialogPause();life.resetUserPause();
   clearInput();
   $('#dialog').classList.add('hidden'); $('#pause-overlay').classList.add('hidden');
   setMenuVisible(false);
   scene.resetViews();
   toast(sim.vehicleId==='dozer'?t(touchMode?'touchHelp':'desktopHelp'):t(touchMode?'vehicleTouchHelp':'vehicleDesktopHelp',{ability:vehicleText(sim.vehicleId,'abilityName').toLowerCase()}));
   $('.desktop-hint>span:last-child').textContent=vehicleText(sim.vehicleId,'abilityName').toLowerCase();
-  $('#play').blur();
+  focusGame();
   updateHud(true);
 }
 function menu() {
   sim.reset();
-  controls.screen = 'menu';life.resetUserPause();
+  controls.screen = 'menu';clearDialogPause();life.resetUserPause();
   clearInput();
   $('#dialog').classList.add('hidden'); $('#pause-overlay').classList.add('hidden');
   $('#toast').classList.add('hidden');
@@ -183,11 +208,12 @@ function pause(value = true) {
   life.userPause(value);
   clearInput();
   $('#pause-overlay').classList.toggle('hidden', !value);
+  modalFocus.sync();
   if (value) $('#resume').focus();
+  else if (!controls.paused) focusGame();
 }
 function openSettings() {
   const previous = controls.screen === 'result' ? [...$('#dialog').childNodes] : null;
-  const wasPaused = controls.paused;
   if (controls.screen === 'playing') {life.reason('settings',true);clearInput();}
   $('#dialog').innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-top"><span class="eyebrow" data-i18n="settingsEyebrow">${t('settingsEyebrow')}</span><button class="icon-button" id="close-settings" data-i18n-aria-label="close" aria-label="${t('close')}">${svg('close')}</button></div>
@@ -200,6 +226,7 @@ function openSettings() {
     <p class="settings-note" data-i18n="settingsNote">${t('settingsNote')}</p><button class="play-button" id="settings-done"><span data-i18n="settingsDone">${t('settingsDone')}</span> ${svg('check')}</button>
   </section>`;
   $('#dialog').classList.remove('hidden');
+  modalFocus.sync();
   $('#language').value=ENGLISH_ONLY?'en':settings.language||'auto';$('#quality').value=settings.quality;
   $('#language').onchange=e=>{settings.language=e.target.value==='auto'?null:e.target.value;setLocale(resolveLocale(settings.language,sdkAdapter.getLanguage(),navigator.language));save();$('#language option[value=auto]').textContent=t('languageAutomatic');};
   $('#quality').onchange=e=>{settings.quality=e.target.value;controls.quality=e.target.value;save();};
@@ -211,13 +238,17 @@ function openSettings() {
     else $('#dialog').classList.add('hidden');
     life.reason('settings',false);
   };
+  modalFocus.setCloseHandler($('#dialog'), close);
   $('#close-settings').onclick = close; $('#settings-done').onclick = close;
   $('#close-settings').focus();
 }
 function help() {
   $('#dialog').innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="eyebrow" data-i18n="helpEyebrow">${t('helpEyebrow')}</div><h2 id="help-title" data-i18n-html="helpTitle">${t('helpTitle')}</h2><div class="help-step"><b>01</b><p data-i18n-html="helpStep1">${t('helpStep1')}</p></div><div class="help-step"><b>02</b><p data-i18n-html="helpStep2">${t('helpStep2')}</p></div><div class="help-step"><b>03</b><p data-i18n-html="helpStep3">${t('helpStep3')}</p></div><button id="help-done" class="play-button"><span data-i18n="helpDone">${t('helpDone')}</span> ${svg('arrow')}</button></section>`;
   $('#dialog').classList.remove('hidden');
-  $('#help-done').onclick = () => $('#dialog').classList.add('hidden');
+  modalFocus.sync();
+  const close = () => $('#dialog').classList.add('hidden');
+  modalFocus.setCloseHandler($('#dialog'), close);
+  $('#help-done').onclick = close;
   $('#help-done').focus();
 }
 function finish() {
@@ -234,6 +265,7 @@ function finish() {
 }
 // Rendering the translated result must never settle the same run again.
 function renderResult() {
+  modalFocus.setCloseHandler($('#dialog'), null);
   const won = sim.phase === 'won';
   const defeatKey=sim.mission.objective==='score'?'defeatScore':sim.mission.objective==='destroy'?'defeatDestroy':'defeatChain';
   $('#dialog').innerHTML = `<section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
@@ -250,6 +282,7 @@ function renderResult() {
     <div class="result-links"><button id="result-garage" class="text-button">${t('garage')} ${svg('garage')}</button><button id="result-levels" class="text-button">${t('levels')} ${svg('levels')}</button><button id="back-menu" class="text-button">${t('menu')} ${svg('arrow')}</button></div>
   </section>`;
   $('#dialog').classList.remove('hidden');
+  modalFocus.sync();
   if($('#double-reward'))$('#double-reward').onclick=claimAdReward;
   if($('#continue-without-ad'))$('#continue-without-ad').onclick=openLevels;
   if($('#next-contract'))$('#next-contract').onclick=()=>start(sim.mission.id+1);
@@ -266,10 +299,23 @@ function updateHud(force = false) {
   $('.timer-panel').classList.toggle('urgent', seconds <= 15);
   $('#mission-progress').textContent = formatNumber(sim.freeMode?sim.destroyed:sim.progress);
   $('#mission-target').textContent=` / ${formatNumber(sim.freeMode?sim.buildings.length:sim.mission.target)}`;
-  $('#hud-mission').textContent=(sim.freeMode?t('freePlay'):missionName(sim.mission.id)).toUpperCase();
+  $('#hud-mission').textContent=sim.freeMode?t('freePlay'):missionName(sim.mission.id);
+  $('#block-progress').textContent=sim.freeMode?'Free play':`Block ${sim.sector+1}/${sim.mission.sectors}`;
+  const objective=sim.freeMode?'destroy':sim.mission.objective;
+  $('#objective-label').textContent=objective==='score'?'Score target':objective==='chain'?'Best chain':'Buildings cleared';
+  const objectiveDone=!sim.freeMode&&sim.progress>=sim.mission.target;
+  $('#objective-check').classList.toggle('hidden',!objectiveDone);
+  $('#score-progress').classList.toggle('complete',objectiveDone);
+  $('#clearance-objective').classList.toggle('hidden',sim.freeMode||objective==='destroy');
   $('#hud-location').textContent=sim.freeMode?t('freeLocation',{district:districtName(sim.mission.district).toUpperCase()}):t('hudLocation',{number:sim.mission.id,district:districtName(sim.mission.district).toUpperCase()});
   $('#hud-score').textContent=t('hudScore',{score:formatNumber(sim.score)});
-  $('#clearance-progress').textContent=sim.freeMode?'Clear the map at your own pace':`Block ${sim.sector+1} of ${sim.mission.sectors} · Cleared ${sim.destroyed}/${sim.mission.minDestroyed}`;
+  $('#clearance-progress').textContent=`Clearance ${sim.destroyed}/${sim.mission.minDestroyed}`;
+  $('#clearance-check').classList.toggle('hidden',sim.destroyed<sim.mission.minDestroyed);
+  $('#clearance-fill').style.width=`${Math.min(100,sim.destroyed/sim.mission.minDestroyed*100)}%`;
+  minimap.update(sim);
+  const remaining=sim.buildings.reduce((n,b)=>n+(b.hp>0?1:0),0);
+  $('#map-remaining').textContent=`${remaining} left`;
+  $('#site-map').setAttribute('aria-label',`Current block map: ${remaining} buildings remaining. Yellow arrow shows your position and direction.`);
   $('#clearance-progress').classList.toggle('complete',sim.destroyed>=sim.mission.minDestroyed);
   $('#score-progress').style.width = `${Math.min(100, (sim.freeMode?sim.destroyed/sim.buildings.length:sim.progress/sim.mission.target) * 100)}%`;
   $('#balance').textContent = formatNumber(sim.balance);
@@ -285,6 +331,7 @@ function updateHud(force = false) {
   $('#ram').setAttribute('aria-disabled', String(cooldown > .05));
 }
 
+controls.getCameraSafeTop=()=>$('#hud').classList.contains('hidden')?0:$('.goal-panel').getBoundingClientRect().bottom;
 controls.onReady=ready=>{scene=ready;enablePlayWhenReady();updateMenuMission();};
 controls.onEvents = events => {
   progress.observeEvents(sim.runId,events,{freeMode:sim.freeMode});
@@ -319,12 +366,13 @@ soundButton();
 
 const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Space'];
 window.addEventListener('keydown', event => {
-  if (event.target.matches('input,select')) return;
   if (event.code === 'Escape' && $('#dialog').classList.contains('hidden')) { event.preventDefault(); if (!event.repeat) pause(!controls.paused); }
+  if (event.target.closest('input,select,textarea,[contenteditable="true"]') ||
+      (event.code === 'Space' && event.target.closest('button,a'))) return;
   if (!movementKeys.includes(event.code) || controls.screen !== 'playing' || controls.paused) return;
   event.preventDefault(); if (event.code === 'Space' && !event.repeat) controls.ramQueued = true; keys.add(event.code); updateInput();
 });
-window.addEventListener('keyup', event => { if (movementKeys.includes(event.code)) { event.preventDefault(); keys.delete(event.code); updateInput(); } });
+window.addEventListener('keyup', event => { if (keys.has(event.code)) { event.preventDefault(); keys.delete(event.code); updateInput(); } });
 window.addEventListener('blur',()=>{clearInput();if(controls.screen==='playing'){life.reason('focus',true);$('#pause-overlay').classList.remove('hidden');}});
 document.addEventListener('visibilitychange',()=>{life.reason('visibility',document.hidden);if(document.hidden&&controls.screen==='playing'){$('#pause-overlay').classList.remove('hidden');}});
 
@@ -363,6 +411,11 @@ function ramRelease(event) {
   ramPointer = null; $('#ram').classList.remove('pressed'); updateInput();
 }
 $('#ram').onpointerup = ramRelease; $('#ram').onpointercancel = ramRelease; $('#ram').onlostpointercapture = ramRelease;
+$('#ram').onclick = event => {
+  if (event.detail === 0 && controls.screen === 'playing' && !controls.paused) {
+    audio.init(); controls.ramQueued = true;
+  }
+};
 
 const game = new Phaser.Game({
   type: Phaser.AUTO, parent: 'game', width: innerWidth, height: innerHeight,
@@ -401,12 +454,12 @@ function updateMenuMission(){
   $('.scene-caption').innerHTML=`<span class="tiny-rule"></span> ${t('districtNumber',{number:mission.district==='town'?'01':'02'})}<span class="caption-dot"></span>${districtName(mission.district)}`;
   $('.mission-label .level-number').textContent=String(mission.id).padStart(2,'0');
   $('.mission-label strong').textContent=missionName(mission.id);
-  $('.mission-label small').textContent=districtName(mission.district);
-  $('.hero-meta').innerHTML=`<span>${svg('clock')}${t('seconds',{count:mission.duration})}</span><i></i><span>${svg('target')}${t(mission.objective==='score'?'objectiveScore':mission.objective==='destroy'?'objectiveDestroy':'objectiveChain',{count:formatNumber(mission.target)})}</span><i></i><span>${t('nextShift')}</span>`;
+  $('.mission-label small').textContent=`${districtName(mission.district)} · ${mission.sectors} blocks`;
+  $('.hero-meta').innerHTML=`<span>${svg('clock')}${t('seconds',{count:mission.duration})}</span><i></i><span>${svg('target')}${t(mission.objective==='score'?'objectiveScore':mission.objective==='destroy'?'objectiveDestroy':'objectiveChain',{count:formatNumber(mission.target)})}</span><i></i><span>${mission.objective==='destroy'?'':`Clear ${mission.minDestroyed} buildings`}</span>`;
 }
 function enterHub(name){
   if(!scene)return false;
-  if(ads.busy)return false;clearInput();controls.screen=name;life.resetUserPause();
+  if(ads.busy)return false;clearInput();controls.screen=name;clearDialogPause();life.resetUserPause();
   $('#dialog').classList.add('hidden');$('#pause-overlay').classList.add('hidden');$('#toast').classList.add('hidden');
   setMenuVisible(false);$('#hud').classList.add('hidden');$('#pause').classList.add('hidden');
   document.body.classList.add('in-hub');
@@ -467,7 +520,8 @@ function showFinalModal(markup){
   if(ads.busy)return false;
   if(controls.screen==='playing'){life.reason('dialog',true);clearInput();}
   $('#pause-overlay').classList.add('hidden');
-  $('#dialog').innerHTML=markup;$('#dialog').classList.remove('hidden');return true;
+  $('#dialog').innerHTML=markup;$('#dialog').classList.remove('hidden');
+  modalFocus.setCloseHandler($('#dialog'), closeFinalModal);modalFocus.sync();return true;
 }
 function closeFinalModal(){ $('#dialog').classList.add('hidden');life.reason('dialog',false);if(life.reasons.has('manual'))$('#pause-overlay').classList.remove('hidden'); }
 function openAchievements(){
@@ -490,8 +544,8 @@ function startFree(district='town'){
   if(ads.busy||!scene||!progress.state.unlockedDistricts.includes(district))return;
   closeFinalModal();audio.init();
   sim.start({mode:'free',district,vehicleId:progress.state.selectedVehicle});
-  controls.screen='playing';life.resetUserPause();clearInput();$('#dialog').classList.add('hidden');$('#pause-overlay').classList.add('hidden');
-  setMenuVisible(false);scene.resetViews();updateHud(true);toast(t('freeHint'));
+  controls.screen='playing';clearDialogPause();life.resetUserPause();clearInput();$('#dialog').classList.add('hidden');$('#pause-overlay').classList.add('hidden');
+  setMenuVisible(false);scene.resetViews();focusGame();updateHud(true);toast(t('freeHint'));
 }
 async function claimAdReward(){
   if(ads.busy)return;

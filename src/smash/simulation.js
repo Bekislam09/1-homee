@@ -42,6 +42,7 @@ const RADIUS = 20;
 const RAM_SPEED = 400;
 const COMBO_WINDOW = 7;
 const HIT_COOLDOWN = 0.75;
+const ABILITY_INPUT_BUFFER = 0.15;
 const EPSILON = 1e-7;
 const CHAIN_LIMIT = 6;
 let runSequence = 0;
@@ -143,6 +144,7 @@ export class Simulation {
     this._ramSerial = 0;
     this._ramHeading = 0;
     this._ramHeld = false;
+    this._abilityBuffer = 0;
     this._abilityImpacted = false;
     this._impactCount = 0;
     this.attackTarget = null;
@@ -193,9 +195,14 @@ export class Simulation {
     };
   }
 
+  cancelBufferedAbility() {
+    this._abilityBuffer = 0;
+  }
+
   useRam() {
     const p = this.player;
     if (this.phase !== 'playing' || p.ramCooldown > EPSILON || p.ramTime > EPSILON) return false;
+    this._abilityBuffer = 0;
     p.ramTime = this.vehicle.duration;
     p.ramCooldown = this.vehicle.cooldown;
     p.abilityDuration = this.vehicle.duration;
@@ -253,7 +260,11 @@ export class Simulation {
     const length = Math.hypot(ix, iy);
     if (length > 1) { ix /= length; iy /= length; }
     if (input.ramPressed || (input.ram && !this._ramHeld)) {
-      this.useRam();
+      // Accept a deliberate tap just before the cooldown finishes. Holding the
+      // button still produces only one activation, never automatic repeats.
+      if (!this.useRam() && this._sectorWait === null && this.player.ramCooldown <= ABILITY_INPUT_BUFFER + EPSILON) {
+        this._abilityBuffer = ABILITY_INPUT_BUFFER;
+      }
     }
     this._ramHeld = Boolean(input.ram);
     // Substeps keep collisions and the timer reliable at low frame rates, too.
@@ -275,12 +286,19 @@ export class Simulation {
         this.sector++;this._loadBuildings();this._sectorWait=null;this._collapses=[];
         Object.assign(p,{x:80,y:180,vx:0,vy:0,heading:0,speed:0,ramTime:0,ramCooldown:0,attackTarget:null});
         this.attackTarget=null;this._pointTargetId=null;this._ramHeld=false;
+        this._abilityBuffer=0;
         this.events.push({type:'sector',sector:this.sector+1,total:this.mission.sectors});
       }
       if(this.timeLeft<=EPSILON){this.timeLeft=0;this.phase='lost';this.events.push({type:'lose',x:p.x,y:p.y});}
       return;
     }
     p.ramCooldown = Math.max(0, p.ramCooldown - dt);
+    if (this._abilityBuffer > 0 && p.ramCooldown <= EPSILON) {
+      this._abilityBuffer = 0;
+      this.useRam();
+    } else {
+      this._abilityBuffer = Math.max(0, this._abilityBuffer - dt);
+    }
     this._comboTime = Math.max(0, this._comboTime - dt);
     if (this._comboTime === 0) this.combo = 0;
     for (const building of this.buildings) building.hitCooldown = Math.max(0, building.hitCooldown - dt);

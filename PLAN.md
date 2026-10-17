@@ -1,4 +1,4 @@
-# Smash City v4.1 — delivery record
+# Smash City v4.2 — delivery record
 
 ## Completed implementation
 
@@ -13,10 +13,10 @@
 
 ## Verification
 
-- 172 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
+- 178 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
 - Regression coverage includes steering, ability timing, target occlusion, remixed collapse properties, unique block IDs, one-time settlement and legacy saves.
-- All 15 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
-- Local, CrazyGames Basic and CrazyGames Full production builds pass. Both game ZIPs pass integrity and extracted HTTP checks (real destruction, 25 coins, no page errors, forced English, dev harness absent).
+- All 21 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
+- Local, CrazyGames Basic and CrazyGames Full production builds pass. Both game ZIPs pass integrity and extracted HTTP checks (real destruction, 25 coins, map counter, keyboard dialog recovery, no page errors, forced English, dev harness absent).
 - Production and ZIP checks are recorded in generated `releases/build-manifest.json` and `releases/http-smoke-report.json`. Run the commands in README to reproduce them.
 
 ## External checks still pending
@@ -32,3 +32,12 @@ Previous v3 implementation and verification history remains in Git; its Yandex a
 - Removed the duplicate hero machine display, shortened decorative copy and made labels more readable.
 - Moved help to the header so it remains usable on phones; added narrow viewport and reduced-motion checks.
 - Preserved the campaign, saved progress and English-only CrazyGames configuration. Yandex remains postponed.
+
+## v4.2 usability pass
+
+- Added a fixed-resource isometric block map with real destruction state and vehicle heading.
+- Separated primary objectives and clearance requirements; added explicit completion checks and a block counter.
+- Buffered deliberate ability taps during the final 150ms of cooldown, with cancellation on pause/reset/block change.
+- Fixed a reproduced permanent-pause path caused by keyboard focus escaping Settings. Modal focus is contained, Escape closes appropriate windows, and focus returns to the trigger.
+- Preserved native keyboard button activation and platform/ad pause locks.
+- Reserved camera headroom below the HUD; checked the actual opaque silhouette of all five vehicles at spawn and the north boundary.

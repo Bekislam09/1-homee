@@ -52,9 +52,15 @@ try {
     await page.click('#play');
     await page.keyboard.press('Space');
     await page.waitForFunction(() => document.querySelector('#run-coins').textContent === '25');
+    assert.equal(await page.locator('#map-remaining').innerText(), '13 left');
+    assert.equal(await page.locator('#objective-label').innerText(), 'Score target');
+    await page.click('#settings');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#dialog').isHidden(), true);
+    assert.equal(await page.locator('#settings').evaluate(el => document.activeElement === el), true);
     assert.deepEqual(errors, [], 'JavaScript errors');
     assert.deepEqual(missing, [], 'Missing or unexpected resources');
-    console.log(`${scenario.source}/${scenario.entry || '(index)'} -> ${scenario.destination || '(index)'}: Play, destruction, 25 coins, English and assets passed`);
+    console.log(`${scenario.source}/${scenario.entry || '(index)'} -> ${scenario.destination || '(index)'}: Play, destruction, 25 coins, English, map, dialog recovery and assets passed`);
     await context.close();
   }
   console.log('Local Pages emulation passed. This does not verify the public deployment.');

@@ -77,6 +77,8 @@ export class CityScene extends Phaser.Scene {
     } else {
       camera.setViewport(0, 0, w, h);
       camera.setZoom(Math.min(w < 600 ? .78 : 1, Math.max(.58, w / 1000)));
+      // DOM geometry is sampled only on layout, never during the render loop.
+      this.cameraSafeTop = this.controls.getCameraSafeTop?.() || 0;
       const p = iso(this.sim.player.x, this.sim.player.y);
       this.follow.x = p.x;
       this.follow.y = p.y;
@@ -93,7 +95,12 @@ export class CityScene extends Phaser.Scene {
     const halfH = cam.height / cam.zoom / 2;
     // The projected island has a fixed rectangular camera envelope.
     const x = halfW > 1020 ? 0 : Phaser.Math.Clamp(this.follow.x, -1020 + halfW, 1020 - halfW);
-    const y = halfH > 640 ? 480 : Phaser.Math.Clamp(this.follow.y - 35, -130 + halfH, 1150 - halfH);
+    let y = halfH > 640 ? 480 : Phaser.Math.Clamp(this.follow.y - 35, -130 + halfH, 1150 - halfH);
+    // At the north edge the island envelope can put the machine behind the HUD.
+    // Keep its cab/tool silhouette below the panel, including taller crane booms.
+    const headroom = this.sim.vehicleId === 'dozer' ? 80 : 155;
+    const safeTop = (this.cameraSafeTop || 0) + 12 + headroom * cam.zoom;
+    y = Math.min(y, p.y + halfH - safeTop / cam.zoom);
     cam.centerOn(x, y);
   }
 

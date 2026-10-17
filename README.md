@@ -1,6 +1,6 @@
 # Smash City — City Demolition
 
-Version 4.1: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
+Version 4.2: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
 
 ## Run and verify
 
@@ -22,6 +22,11 @@ node scripts/smoke-releases.mjs
 `npm run build` creates `dist`; `npm run preview` serves it. The `/?test` harness is available only in development.
 
 ## What's new
+
+- A live isometric site map shows standing, damaged and cleared buildings, plus your vehicle position and direction.
+- Contract instruments distinguish the score/chain target from mandatory clearance, with a separate completed state and block counter.
+- A 150ms ability input buffer accepts taps just before cooldown ends; pauses and block changes cancel pending taps.
+- Dialogs contain keyboard focus, close with Escape where appropriate, and restore focus. Screen changes clear temporary dialog pauses while retaining platform/ad locks.
 
 - Smooth acceleration, braking and bounded steering; vehicle silhouettes rotate in one-degree increments instead of snapping between eight directions. Articulated tools interpolate their windup, contact and recovery poses.
 - A construction-toy visual identity across the home screen, garage, contracts, HUD and dialogs: sky-blue/white panels, yellow controls, locally bundled Fredoka, readable labels and fleet shortcuts. The city is the main illustration; the workshop palette matches the UI.
@@ -56,7 +61,7 @@ Game ZIPs contain `index.html` at their root and relative assets. `releases/buil
 
 ## Validation limits
 
-172 unit checks and 15 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
+178 unit checks and 21 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
 
 Real CrazyGames preview, advertising inventory, physical phones and hardware FPS still require external testing. Official documentation was unavailable through this environment's proxy (403), so current platform upload limits were not independently verified. No game-platform publication has been performed. The Vite Phaser chunk-size warning does not prevent builds.
 

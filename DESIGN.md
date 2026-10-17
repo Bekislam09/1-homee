@@ -38,3 +38,22 @@ Desktop review confirmed the city remains the primary illustration and garage pu
 Tablet portrait uses two columns of controls above a full-width city viewport. The mobile help dialog now constrains its grid column to the viewport; a regression check verifies both bounds and internal overflow at 320px. Local Fredoka loading and reduced-motion behavior are covered in the browser suite. The font license is included in website and CrazyGames artifacts.
 
 Validation: 172 unit tests and all 15 browser scenarios passed. After the last help-number wrapping adjustment, all three layout/font/texture scenarios passed again. Help, settings, daily rewards, achievements and free-play dialogs were inspected at 320×640 with no horizontal overflow.
+
+## Usability pass (4.2)
+
+Keep the construction-toy palette and Fredoka; make information useful during actual play. The goal panel separates the score/chain requirement from building clearance, with a green completed state for each. A compact isometric site map uses blue for standing buildings, muted gray for cleared sites and a yellow directional player marker. Place it below the coin instrument on desktop and above the ability control on phones. Keep the center of the playfield open; do not add decorative motion or more marketing panels.
+
+```
+time       contract / block                 coins
+           score target + progress          site map
+           required clearance + progress
+                     playfield
+joystick                                    ability
+```
+
+Review: two equal large bars would dominate a phone. Use the primary objective as the larger number and make clearance a compact second line; destroy missions use one shared requirement. The map must reflect the current simulation, including sector changes and free play, with fixed canvas resources. Modal behavior needs keyboard containment, Escape and restoration of focus so the menu behind a dialog cannot interrupt a run.
+
+
+Usability screenshots: reviewed 1366×768 home, desktop play, 320×640 touch play and 844×390 landscape. Controls and map fit without horizontal overflow. The camera now reserves space above the actual vehicle silhouette so the north edge cannot hide it behind the objective panel. This is verified across all five machines; no camera DOM reads occur in the frame loop.
+
+Final review shortened the ability-ready text and cooldown countdown so landscape buttons do not clip their status. Help now explains the real contract requirement: meet the target and clear buildings across all blocks. Validation: 178 unit checks and 21 browser scenarios passed; the five layout/navigation scenarios were repeated after the final copy edit. Production archive smoke also checks the map counter and keyboard recovery from Settings.
