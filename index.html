@@ -1,1 +1,10 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f3eb"><title>Smash City — City Demolition</title></head><body><div id="app"></div><script type="module" src="/src/smash/main.js"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f3eb"><title>Smash City — City Demolition</title></head><body><div id="app"></div><script type="module">
+// A raw repository-root Pages deployment must open the bundled website.
+// Vite replaces PROD during builds, so built sites stay at their own URL.
+if (!import.meta.env?.PROD && location.hostname.endsWith('.github.io')) {
+  const root = location.pathname.replace(/index\.html$/, '').replace(/\/?$/, '/');
+  location.replace(root + 'docs/' + location.search + location.hash);
+} else {
+  await import('/src/smash/main.js');
+}
+</script></body></html>
