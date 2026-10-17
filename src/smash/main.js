@@ -4,6 +4,7 @@ import { Simulation } from './simulation.js';
 import { LocalPlatform } from './platform.js';
 import { AudioSystem } from './audio.js';
 import './style.css';
+import './theme.css';
 import './final-copy.js';
 import {GameLifecycle} from './lifecycle.js';
 import {createPlatformAdapter,LocalPlatformAdapter} from './platform-adapters.js';
@@ -64,25 +65,24 @@ $('#app').innerHTML = `
 <div id="game" data-i18n-aria-label="gameAria" aria-label="${t('gameAria')}"></div>
 <header class="site-header">
   <a class="brand" href="#" id="brand" data-i18n-aria-label="homeAria" aria-label="${t('homeAria')}"><span class="brand-symbol">${svg('bolt')}</span><span>SMASH<span class="brand-light">CITY</span><small data-i18n="brandTagline">${t('brandTagline')}</small></span></a>
-  <div class="header-actions"><span class="wallet">${svg('coin')}<b id="balance">${sim.balance}</b><span data-i18n="coins">${t('coins')}</span></span><button id="sound" class="icon-button" data-i18n-aria-label="soundToggle" aria-label="${t('soundToggle')}">${svg('sound')}</button><button id="settings" class="icon-button" data-i18n-aria-label="settings" aria-label="${t('settings')}">${svg('gear')}</button><button id="pause" class="icon-button hidden" data-i18n-aria-label="pause" aria-label="${t('pause')}">${svg('pause')}</button></div>
+  <div class="header-actions"><span class="wallet">${svg('coin')}<b id="balance">${sim.balance}</b><span data-i18n="coins">${t('coins')}</span></span><button id="help" class="icon-button header-help" data-i18n-aria-label="howToPlay" aria-label="${t('howToPlay')}" title="How to play">?</button><button id="sound" class="icon-button" data-i18n-aria-label="soundToggle" aria-label="${t('soundToggle')}">${svg('sound')}</button><button id="settings" class="icon-button" data-i18n-aria-label="settings" aria-label="${t('settings')}">${svg('gear')}</button><button id="pause" class="icon-button hidden" data-i18n-aria-label="pause" aria-label="${t('pause')}">${svg('pause')}</button></div>
 </header>
 <main id="menu" class="menu">
   <div class="hero">
-    <div class="eyebrow"><span class="status-dot"></span> <span data-i18n="heroEyebrow">${t('heroEyebrow')}</span></div>
-    <h1>SMASH<br><span>CITY<span class="title-spark">✳</span></span></h1>
-    <div class="campaign-badge"><b>12</b> CONTRACTS <span>•</span> <b>5</b> MACHINES</div><div class="subtitle" data-i18n="subtitle">${t('subtitle')}</div>
+
+    <h1 aria-label="Smash City"><span>SMASH</span><span>CITY</span></h1>
+    <div class="campaign-badge">${svg('levels')} <span>12 demolition jobs to master</span></div><div class="subtitle" data-i18n="subtitle">${t('subtitle')}</div>
     <p class="hero-description" data-i18n-html="heroDescription">${t('heroDescription')}</p>
     <div class="mission-label"><span class="level-number">01</span><div><small data-i18n="firstShift">${t('firstShift')}</small><strong>${missionName(1)}</strong></div><span class="mission-arrow">${svg('arrow')}</span></div>
     <button id="play" class="play-button" disabled><span>${svg('play')} <span id="play-label" data-i18n="loading">${t('loading')}</span></span>${svg('arrow')}</button>
-    <div class="hero-meta"><span>${svg('clock')}${t('seconds',{count:90})}</span><i></i><span>${svg('target')}${t('objectiveScore',{count:formatNumber(1000)})}</span><i></i><span>${t('nextShift')}</span></div><nav class="menu-nav"><button id="garage">${svg('garage')} <span data-i18n="garage">${t('garage')}</span></button><button id="levels">${svg('levels')} <span data-i18n="levels">${t('levels')}</span> <span>${MISSIONS.length}</span></button></nav><nav class="final-nav"><button id="achievements" data-i18n="achievementsShort">${t('achievementsShort')}</button><button id="free-play" data-i18n="freePlay">${t('freePlay')}</button><button id="daily" data-i18n="daily">${t('daily')}</button></nav>
+    <div class="hero-meta"><span>${svg('clock')}${t('seconds',{count:90})}</span><i></i><span>${svg('target')}${t('objectiveScore',{count:formatNumber(1000)})}</span><i></i><span>${t('nextShift')}</span></div><nav class="menu-nav"><button id="garage">${svg('garage')} <span data-i18n="garage">${t('garage')}</span></button><button id="levels">${svg('levels')} <span data-i18n="levels">${t('levels')}</span> <span>${MISSIONS.length}</span></button></nav><nav class="final-nav"><button id="achievements">${svg('trophy')}<span data-i18n="achievementsShort">${t('achievementsShort')}</span></button><button id="free-play">${svg('reset')}<span data-i18n="freePlay">${t('freePlay')}</span></button><button id="daily">${svg('coin')}<span data-i18n="daily">${t('daily')}</span></button></nav>
   </div>
   <div class="scene-caption"><span class="tiny-rule"></span> ${t('districtNumber',{number:'01'})}<span class="caption-dot"></span>${districtName('town').toUpperCase()}</div>
-  <div class="hero-machine-stage"><span class="machine-kicker">YOUR NEXT BIG MOVE</span><img id="hero-machine" alt=""><div class="machine-nameplate"><span id="hero-vehicle-name"></span><small>BUILT FOR DESTRUCTION</small></div></div><div class="scene-sticker"><span>${svg('bolt')}</span><div data-i18n-html="sceneSticker">${t('sceneSticker')}</div></div>
+
 </main>
 <section id="building-guide" class="building-guide" data-i18n-aria-label="buildingsAria" aria-label="${t('buildingsAria')}">
-  <div class="guide-intro"><small>MEET YOUR DEMOLITION CREW</small><strong>Pick your power.</strong></div>
+  <div class="guide-intro"><strong>Your fleet</strong><small>Choose your machine</small></div>
   <div id="home-fleet" class="home-fleet"></div>
-  <button id="help" class="help-button"><span data-i18n="howToPlay">${t('howToPlay')}</span> <span>?</span></button>
 </section>
 <footer id="footer"><span data-i18n="footerLeft">${t('footerLeft')}</span><span><span class="status-dot"></span> <span data-i18n="footerRight">${t('footerRight')}</span></span></footer>
 <section id="garage-screen" class="subscreen hidden" data-i18n-aria-label="garage" aria-label="${t('garage')}"></section>
@@ -269,7 +269,7 @@ function updateHud(force = false) {
   $('#hud-mission').textContent=(sim.freeMode?t('freePlay'):missionName(sim.mission.id)).toUpperCase();
   $('#hud-location').textContent=sim.freeMode?t('freeLocation',{district:districtName(sim.mission.district).toUpperCase()}):t('hudLocation',{number:sim.mission.id,district:districtName(sim.mission.district).toUpperCase()});
   $('#hud-score').textContent=t('hudScore',{score:formatNumber(sim.score)});
-  $('#clearance-progress').textContent=sim.freeMode?'Clear the map at your own pace':`BLOCK ${sim.sector+1}/${sim.mission.sectors} · CLEARANCE ${sim.destroyed}/${sim.mission.minDestroyed}`;
+  $('#clearance-progress').textContent=sim.freeMode?'Clear the map at your own pace':`Block ${sim.sector+1} of ${sim.mission.sectors} · Cleared ${sim.destroyed}/${sim.mission.minDestroyed}`;
   $('#clearance-progress').classList.toggle('complete',sim.destroyed>=sim.mission.minDestroyed);
   $('#score-progress').style.width = `${Math.min(100, (sim.freeMode?sim.destroyed/sim.buildings.length:sim.progress/sim.mission.target) * 100)}%`;
   $('#balance').textContent = formatNumber(sim.balance);
@@ -395,16 +395,13 @@ function updateMenuMission(){
   const mission=getMission(activeMissionId);
   if(scene){
     const selected=progress.state.selectedVehicle;
-    $('#hero-machine').src=artUrl(`garage-${selected}`);
-    $('#hero-machine').alt=vehicleName(selected);
-    $('#hero-vehicle-name').textContent=vehicleName(selected);
-    $('#home-fleet').innerHTML=Object.values(VEHICLES).map(v=>`<button class="fleet-preview ${v.id===selected?'active':''}" data-home-vehicle="${v.id}" aria-label="View ${vehicleName(v.id)} in garage"><img src="${artUrl(`garage-${v.id}`)}" alt=""><span>${vehicleName(v.id)}</span><small>${progress.state.ownedVehicles.includes(v.id)?'OWNED':formatNumber(v.price)+' ◇'}</small></button>`).join('');
+    $('#home-fleet').innerHTML=Object.values(VEHICLES).map(v=>`<button class="fleet-preview ${v.id===selected?'active':''}" data-home-vehicle="${v.id}" aria-label="View ${vehicleName(v.id)} in garage"><img src="${artUrl(`garage-${v.id}`)}" alt=""><span>${vehicleName(v.id)}</span><small>${progress.state.ownedVehicles.includes(v.id)?(v.id===selected?'Selected':'Owned'):formatNumber(v.price)+' ◇'}</small></button>`).join('');
     document.querySelectorAll('[data-home-vehicle]').forEach(b=>b.onclick=()=>{openGarage();garageVehicle=b.dataset.homeVehicle;renderGarage();});
   }
-  $('.scene-caption').innerHTML=`<span class="tiny-rule"></span> ${t('districtNumber',{number:mission.district==='town'?'01':'02'})}<span class="caption-dot"></span>${districtName(mission.district).toUpperCase()}`;
+  $('.scene-caption').innerHTML=`<span class="tiny-rule"></span> ${t('districtNumber',{number:mission.district==='town'?'01':'02'})}<span class="caption-dot"></span>${districtName(mission.district)}`;
   $('.mission-label .level-number').textContent=String(mission.id).padStart(2,'0');
   $('.mission-label strong').textContent=missionName(mission.id);
-  $('.mission-label small').textContent=districtName(mission.district).toUpperCase();
+  $('.mission-label small').textContent=districtName(mission.district);
   $('.hero-meta').innerHTML=`<span>${svg('clock')}${t('seconds',{count:mission.duration})}</span><i></i><span>${svg('target')}${t(mission.objective==='score'?'objectiveScore':mission.objective==='destroy'?'objectiveDestroy':'objectiveChain',{count:formatNumber(mission.target)})}</span><i></i><span>${t('nextShift')}</span>`;
 }
 function enterHub(name){
@@ -424,7 +421,7 @@ function openGarage(){
 }
 function renderGarage(){
   const selected=VEHICLES[garageVehicle],owned=progress.state.ownedVehicles.includes(garageVehicle),active=progress.state.selectedVehicle===garageVehicle;
-  $('#garage-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('garageEyebrow')}</div><h2>${t('garageTitle')}</h2></div><button id="garage-back" class="secondary-button">${svg('arrow','back-arrow')} ${t('backMenu')}</button></div><div class="garage-layout"><div id="garage-list" class="vehicle-list">${Object.values(VEHICLES).map((v,i)=>`<button data-vehicle="${v.id}" class="vehicle-card ${garageVehicle===v.id?'viewing':''}" aria-pressed="${garageVehicle===v.id}"><span class="vehicle-number">0${i+1}</span><img src="${artUrl(`garage-${v.id}`)}" alt=""><span><strong>${vehicleName(v.id)}</strong><small>${progress.state.selectedVehicle===v.id?t('vehicleSelectedUpper'):progress.state.ownedVehicles.includes(v.id)?t('vehicleOwnedUpper'):t('vehiclePriceUpper',{price:v.price})}</small></span>${svg(progress.state.ownedVehicles.includes(v.id)?'check':'lock')}</button>`).join('')}<div class="garage-tip">${svg('bolt')}<p>${t('garageTip')}</p></div></div><div class="workshop-stage"><div class="workshop-tag">SMASH CITY <span>${t('workshopTag',{number:'0'+(Object.keys(VEHICLES).indexOf(garageVehicle)+1)})}</span></div><img class="workshop-room" src="${artUrl('garage-room')}" alt="${t('workshopAria')}"><img id="vehicle-preview" class="workshop-vehicle ${garageVehicle}" src="${artUrl(`garage-${garageVehicle}`)}" alt="${vehicleName(selected.id)}"><div class="workshop-plate">${svg('garage')} ${vehicleName(selected.id).toUpperCase()}</div></div><div class="vehicle-details"><div class="eyebrow">${owned?t('vehicleReady'):t('vehicleNew')}</div><h3>${vehicleName(selected.id)}</h3><div class="vehicle-subtitle">${vehicleText(selected.id,'subtitle')}</div><p>${vehicleText(selected.id,'description')}</p><div class="ability-spec"><span>${svg('bolt')} ${vehicleText(selected.id,'abilityName')}</span><small>${t('cooldown',{seconds:selected.cooldown.toFixed(1)})}</small></div><div class="vehicle-traits"><span>${t('movementSpeed')}</span><div>${[1,2,3].map(n=>`<i class="${n<=(selected.speed>=155?3:selected.speed>=135?2:1)?'filled':''}"></i>`).join('')}</div></div><div class="vehicle-price"><small>${owned?t('inGarage'):t('price')}</small><strong>${owned?t('purchased'):`${selected.price} ◇`}</strong></div><button id="vehicle-action" class="play-button" ${active?'disabled':''}>${active?t('selected'):owned?t('selectVehicle'):t('purchaseFor',{price:selected.price})} ${svg(active?'check':owned?'arrow':'coin')}</button>${!owned&&sim.balance<selected.price?`<div class="funds-note">${t('needCoins',{count:selected.price-sim.balance})}</div>`:''}<button id="garage-missions" class="text-button">${t('toMissions')} ${svg('levels')}</button></div></div>`;
+  $('#garage-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('garageEyebrow')}</div><h2>${t('garageTitle')}</h2></div><button id="garage-back" class="secondary-button">${svg('arrow','back-arrow')} ${t('backMenu')}</button></div><div class="garage-layout"><div id="garage-list" class="vehicle-list">${Object.values(VEHICLES).map((v,i)=>`<button data-vehicle="${v.id}" class="vehicle-card ${garageVehicle===v.id?'viewing':''}" aria-pressed="${garageVehicle===v.id}"><img src="${artUrl(`garage-${v.id}`)}" alt=""><span><strong>${vehicleName(v.id)}</strong><small>${progress.state.selectedVehicle===v.id?t('vehicleSelectedUpper'):progress.state.ownedVehicles.includes(v.id)?t('vehicleOwnedUpper'):t('vehiclePriceUpper',{price:v.price})}</small></span>${svg(progress.state.ownedVehicles.includes(v.id)?'check':'lock')}</button>`).join('')}<div class="garage-tip">${svg('bolt')}<p>${t('garageTip')}</p></div></div><div class="workshop-stage"><img class="workshop-room" src="${artUrl('garage-room')}" alt="${t('workshopAria')}"><img id="vehicle-preview" class="workshop-vehicle ${garageVehicle}" src="${artUrl(`garage-${garageVehicle}`)}" alt="${vehicleName(selected.id)}"><div class="workshop-plate">${svg('garage')} ${vehicleName(selected.id)}</div></div><div class="vehicle-details"><div class="eyebrow">${owned?t('vehicleReady'):t('vehicleNew')}</div><h3>${vehicleName(selected.id)}</h3><div class="vehicle-subtitle">${vehicleText(selected.id,'subtitle')}</div><p>${vehicleText(selected.id,'description')}</p><div class="ability-spec"><span>${svg('bolt')} ${vehicleText(selected.id,'abilityName')}</span><small>${t('cooldown',{seconds:selected.cooldown.toFixed(1)})}</small></div><div class="vehicle-traits"><span>${t('movementSpeed')}</span><div>${[1,2,3].map(n=>`<i class="${n<=(selected.speed>=155?3:selected.speed>=135?2:1)?'filled':''}"></i>`).join('')}</div></div><div class="vehicle-price"><small>${owned?t('inGarage'):t('price')}</small><strong>${owned?t('purchased'):`${selected.price} ◇`}</strong></div><button id="vehicle-action" class="play-button" ${active?'disabled':''}>${active?t('selected'):owned?t('selectVehicle'):t('purchaseFor',{price:selected.price})} ${svg(active?'check':owned?'arrow':'coin')}</button>${!owned&&sim.balance<selected.price?`<div class="funds-note">${t('needCoins',{count:selected.price-sim.balance})}</div>`:''}<button id="garage-missions" class="text-button">${t('toMissions')} ${svg('levels')}</button></div></div>`;
   $('#garage-back').onclick=menu;$('#garage-missions').onclick=openLevels;
   document.querySelectorAll('[data-vehicle]').forEach(button=>button.onclick=()=>{garageVehicle=button.dataset.vehicle;renderGarage();});
   $('#vehicle-action').onclick=()=>{

@@ -1,4 +1,5 @@
 import {defineConfig} from 'vite';
+import {readFileSync} from 'node:fs';
 
 // Keep one game implementation and choose only the platform integration at build time.
 export default defineConfig(({mode}) => {
@@ -21,7 +22,9 @@ export default defineConfig(({mode}) => {
       {tag: 'meta', attrs: {name: 'smash-platform', content: platform}, injectTo: 'head'},
       {tag: 'meta', attrs: {name: 'smash-crazy-mode', content: crazyMode}, injectTo: 'head'},
       {tag: 'meta', attrs: {name: 'smash-ads', content: ads}, injectTo: 'head'},
-    ]}],
+    ], generateBundle() {
+      this.emitFile({type:'asset',fileName:'assets/Fredoka-OFL.txt',source:readFileSync(new URL('./src/smash/fonts/OFL.txt',import.meta.url),'utf8')});
+    }}],
     build: {rollupOptions: {output: {manualChunks: {phaser: ['phaser']}}}},
   };
 });

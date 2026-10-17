@@ -59,13 +59,20 @@ export class CityScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     const menu = this.controls.screen === 'menu';
     const camera = this.cameras.main;
-    if (menu && w > 760) {
-      camera.setViewport(w * .35, 78, w * .65, h - 160);
-      camera.setZoom(Math.min(w * .65 / 1930, (h - 160) / 1200));
+    if (menu && w>760 && w<=900 && h>=901) {
+      camera.setViewport(0,370,w,h-570);
+      camera.setZoom(Math.min(w/1820,(h-570)/1100));
+      camera.centerOn(0,470);
+    } else if (menu && w > 760) {
+      const compact=h<=500;
+      camera.setViewport(w*.39,compact?55:100,w*.61,h-(compact?145:280));
+      camera.setZoom(Math.min(w*.61/1820,(h-(compact?145:280))/1100));
       camera.centerOn(0, 470);
     } else if (menu) {
-      camera.setViewport(0, h * .38, w, h * .57);
-      camera.setZoom(Math.min(w / 1900, h * .57 / 1160));
+      const top=h<=720?Math.max(h*.61,390):Math.min(h*.56,450);
+      const available=Math.max(100,h-top-(h<=720?134:150));
+      camera.setViewport(0,top,w,available);
+      camera.setZoom(Math.min(w/1820,available/1050));
       camera.centerOn(0, 470);
     } else {
       camera.setViewport(0, 0, w, h);

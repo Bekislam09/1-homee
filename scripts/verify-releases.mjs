@@ -64,7 +64,7 @@ for (const target of manifest.targets) {
   let totalBytes = 0;
   for (let i = 0; i < files.length; i++) {
     const name = names[i];
-    assert(name === 'index.html' || /^assets\/[a-zA-Z\d_.-]+\.(?:js|css|png|webp|svg|jpg|jpeg|woff2?|ogg|mp3|wav)$/.test(name), `Unexpected release file: ${name}`);
+    assert(name === 'index.html' || name === 'assets/Fredoka-OFL.txt' || /^assets\/[a-zA-Z\d_.-]+\.(?:js|css|png|webp|svg|jpg|jpeg|woff2?|ogg|mp3|wav)$/.test(name), `Unexpected release file: ${name}`);
     const data = await readFile(files[i]);
     totalBytes += data.length;
     assert.equal(data.length, target.files[i].bytes, `${target.name}/${name}: size mismatch`);

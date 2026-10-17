@@ -1,6 +1,6 @@
 # Smash City — City Demolition
 
-Version 4: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
+Version 4.1: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
 
 ## Run and verify
 
@@ -24,7 +24,7 @@ node scripts/smoke-releases.mjs
 ## What's new
 
 - Smooth acceleration, braking and bounded steering; vehicle silhouettes rotate in one-degree increments instead of snapping between eight directions. Articulated tools interpolate their windup, contact and recovery poses.
-- A redesigned navy/orange home screen, featured machine, fleet shortcuts, sharper garage portraits and more detailed machine bodies.
+- A construction-toy visual identity across the home screen, garage, contracts, HUD and dialogs: sky-blue/white panels, yellow controls, locally bundled Fredoka, readable labels and fleet shortcuts. The city is the main illustration; the workshop palette matches the UI.
 - Twelve sequential contracts: two blocks in contracts 1–8 and three in contracts 9–12. Each block contains fourteen buildings; later blocks remix structure types and later contracts increase durability. Objectives require both their score/chain target and a minimum clearance, so one quick combo cannot finish a contract.
 - Two new playable machines with distinct abilities, higher garage prices and an English-only interface regardless of browser or legacy language preference.
 
@@ -56,8 +56,12 @@ Game ZIPs contain `index.html` at their root and relative assets. `releases/buil
 
 ## Validation limits
 
-172 unit checks and 14 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
+172 unit checks and 15 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
 
 Real CrazyGames preview, advertising inventory, physical phones and hardware FPS still require external testing. Official documentation was unavailable through this environment's proxy (403), so current platform upload limits were not independently verified. No game-platform publication has been performed. The Vite Phaser chunk-size warning does not prevent builds.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [PUBLISHING.md](PUBLISHING.md), [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [PLAN.md](PLAN.md).
+
+## Design skill
+
+The requested Anthropic `frontend-design` skill is installed in [.agents/skills/frontend-design/SKILL.md](.agents/skills/frontend-design/SKILL.md), with its original license and source commit recorded beside it. AGENTS.md instructs future design work to read it. [DESIGN.md](DESIGN.md) records the visual plan and critique. Local Fredoka is distributed with its SIL Open Font License in source and every production build. The game honors reduced-motion preferences; help remains reachable on narrow phones.

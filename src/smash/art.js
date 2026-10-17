@@ -663,29 +663,29 @@ function industrialCrane(ctx,w,h) {
 function garageRoom(ctx) {
   // A quiet workshop backdrop; the selected machine is animated by the scene.
   const glow=ctx.createRadialGradient(600,330,50,600,390,680);
-  glow.addColorStop(0,'#e6edd7');glow.addColorStop(1,'#9ebaa5');ctx.fillStyle=glow;ctx.fillRect(0,0,1200,800);
+  glow.addColorStop(0,'#e4f4ff');glow.addColorStop(1,'#c6e1f3');ctx.fillStyle=glow;ctx.fillRect(0,0,1200,800);
   ctx.translate(600,450);const p=iso;
   ellipse(ctx,4,160,476,163,'rgba(42,75,61,.12)');
-  face(ctx,p,[[-310,-230,-14],[310,-230,-14],[310,230,-14],[-310,230,-14]],'#9daa91');
-  face(ctx,p,[[-310,-230,0],[310,-230,0],[310,230,0],[-310,230,0]],'#c4c5a9');
+  face(ctx,p,[[-310,-230,-14],[310,-230,-14],[310,230,-14],[-310,230,-14]],'#80abc7');
+  face(ctx,p,[[-310,-230,0],[310,-230,0],[310,230,0],[-310,230,0]],'#adc8da');
   for(let x=-310;x<310;x+=62)for(let y=-230;y<230;y+=58) {
-    face(ctx,p,[[x,y,0],[x+60,y,0],[x+60,y+56,0],[x,y+56,0]],((x+y)/2)%3?'#d6d1b3':'#dcd7ba');
+    face(ctx,p,[[x,y,0],[x+60,y,0],[x+60,y+56,0],[x,y+56,0]],((x+y)/2)%3?'#c3d9e6':'#d4e5ef');
   }
-  face(ctx,p,[[-310,-230,0],[-310,230,0],[-310,230,170],[-310,-230,170]],'#8eaa97');
-  face(ctx,p,[[-310,-230,0],[310,-230,0],[310,-230,170],[-310,-230,170]],'#a9bda4');
+  face(ctx,p,[[-310,-230,0],[-310,230,0],[-310,230,170],[-310,-230,170]],'#80b2d2');
+  face(ctx,p,[[-310,-230,0],[310,-230,0],[310,-230,170],[-310,-230,170]],'#a6cde6');
   for(let z=24;z<170;z+=23) {
-    line(ctx,[p(-309,-230,z),p(-309,230,z)],'#9cb4a0',1);
-    line(ctx,[p(-310,-229,z),p(310,-229,z)],'#b9c7ad',1);
+    line(ctx,[p(-309,-230,z),p(-309,230,z)],'#98c1dc',1);
+    line(ctx,[p(-310,-229,z),p(310,-229,z)],'#bddcec',1);
   }
-  line(ctx,[p(-310,230,0),p(-310,-230,0),p(310,-230,0)],'#708e7c',8);
-  line(ctx,[p(-310,230,170),p(-310,-230,170),p(310,-230,170)],'#e4dfbd',9);
-  for(const x of [-285,-35,280])box(ctx,p,x,-230,0,12,14,170,['#98a78c','#718e77','#d5d7b3']);
-  for(const y of [-50,190])box(ctx,p,-310,y,0,14,10,170,['#98a78c','#718e77','#d5d7b3']);
+  line(ctx,[p(-310,230,0),p(-310,-230,0),p(310,-230,0)],'#4b7c9e',8);
+  line(ctx,[p(-310,230,170),p(-310,-230,170),p(310,-230,170)],'#edf6fc',9);
+  for(const x of [-285,-35,280])box(ctx,p,x,-230,0,12,14,170,['#86aec8','#5f8ba9','#d0e7f3']);
+  for(const y of [-50,190])box(ctx,p,-310,y,0,14,10,170,['#86aec8','#5f8ba9','#d0e7f3']);
   // An inset rolling door, with daylight visible in its high panels.
-  frontPanel(ctx,p,44,-228,1,181,134,'#738d7d','#ced1af',4);
-  for(let z=8;z<131;z+=12)line(ctx,[p(49,-227,z),p(220,-227,z)],'#8fa28a',2);
-  for(const x of [62,114,166])frontPanel(ctx,p,x,-226,98,41,23,'#b7ddd2','#d9dfbc',2);
-  line(ctx,[p(123,-226,35),p(148,-226,35)],'#d2caaa',4);
+  frontPanel(ctx,p,44,-228,1,181,134,'#537f9e','#b9d5e5',4);
+  for(let z=8;z<131;z+=12)line(ctx,[p(49,-227,z),p(220,-227,z)],'#759db9',2);
+  for(const x of [62,114,166])frontPanel(ctx,p,x,-226,98,41,23,'#b5e6f5','#e8f5fb',2);
+  line(ctx,[p(123,-226,35),p(148,-226,35)],'#d1e1e9',4);
   // Tool board and a timber workbench are fitted to the left wall.
   sidePanel(ctx,p,-308,-111,65,143,63,'#bf9d69','#dfc494',3);
   for(let y=-104;y<29;y+=13)for(let z=72;z<126;z+=12) {const q=p(-307.5,y,z);ellipse(ctx,q.x,q.y,.9,.9,'#937e57');}

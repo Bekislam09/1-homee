@@ -1,10 +1,10 @@
-# Smash City v4 — delivery record
+# Smash City v4.1 — delivery record
 
 ## Completed implementation
 
 - Smooth acceleration/braking and bounded steering; Space preserves the current facing direction.
 - Continuous machine poses with one reusable dynamic canvas per machine, improved bodies and sharp garage portraits.
-- Redesigned home screen with a selected-machine feature and five fleet shortcuts; desktop, portrait and landscape layouts.
+- Redesigned home screen with a city diorama and five fleet shortcuts; desktop, portrait and landscape layouts.
 - Road Roller (area shock) and Hydraulic Breaker (three locked-target strikes), alongside the original three machines.
 - Prices: free / 1,200 / 3,000 / 6,000 / 10,000 coins. Existing purchases and progress remain valid.
 - Twelve sequential contracts, two or three blocks each, minimum clearance objectives, varied building types and increased durability in later contracts.
@@ -15,7 +15,7 @@
 
 - 172 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
 - Regression coverage includes steering, ability timing, target occlusion, remixed collapse properties, unique block IDs, one-time settlement and legacy saves.
-- All 14 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
+- All 15 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
 - Local, CrazyGames Basic and CrazyGames Full production builds pass. Both game ZIPs pass integrity and extracted HTTP checks (real destruction, 25 coins, no page errors, forced English, dev harness absent).
 - Production and ZIP checks are recorded in generated `releases/build-manifest.json` and `releases/http-smoke-report.json`. Run the commands in README to reproduce them.
 
@@ -24,3 +24,11 @@
 Real CrazyGames SDK/iframe and ad inventory, physical Android/iOS devices, hardware FPS/heap profiling, current upload limits and platform moderation. Automated fixtures and SwiftShader emulation do not establish these results. Official documentation previously returned proxy 403. The user requested GitHub delivery; no game-platform submission is part of this release.
 
 Previous v3 implementation and verification history remains in Git; its Yandex archive is intentionally unchanged.
+
+## v4.1 design pass
+
+- Installed the user-requested frontend-design skill with its license and pinned source; recorded the visual direction and review in DESIGN.md.
+- Applied sky-blue/white/yellow toy-construction styling to home, garage, mission cards, HUD and secondary dialogs, with local Fredoka and a recolored workshop.
+- Removed the duplicate hero machine display, shortened decorative copy and made labels more readable.
+- Moved help to the header so it remains usable on phones; added narrow viewport and reduced-motion checks.
+- Preserved the campaign, saved progress and English-only CrazyGames configuration. Yandex remains postponed.

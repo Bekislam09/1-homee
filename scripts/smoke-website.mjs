@@ -7,7 +7,7 @@ import {chromium} from '@playwright/test';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'https://bekislam09.github.io';
 const prefix = '/1-homee/';
-const mime = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css'};
+const mime = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff': 'font/woff', '.txt': 'text/plain'};
 const cases = [
   {source: 'root', entry: '', destination: 'docs/'},
   {source: 'root', entry: 'index.html?from=shared#city', destination: 'docs/?from=shared#city'},
@@ -44,6 +44,8 @@ try {
     await page.goto(origin + prefix + scenario.entry);
     await page.waitForURL(origin + prefix + scenario.destination);
     await page.waitForSelector('#play:not([disabled])');
+    await page.evaluate(() => document.fonts.ready);
+    assert.equal(await page.evaluate(() => [...document.fonts].some(face=>face.family==='Fredoka'&&face.status==='loaded')), true);
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
     assert.equal(await page.locator('meta[name="smash-platform"]').getAttribute('content'), 'local');
     assert.equal(await page.evaluate(() => window.__smash === undefined), true);
