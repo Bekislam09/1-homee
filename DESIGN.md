@@ -57,3 +57,22 @@ Review: two equal large bars would dominate a phone. Use the primary objective a
 Usability screenshots: reviewed 1366×768 home, desktop play, 320×640 touch play and 844×390 landscape. Controls and map fit without horizontal overflow. The camera now reserves space above the actual vehicle silhouette so the north edge cannot hide it behind the objective panel. This is verified across all five machines; no camera DOM reads occur in the frame loop.
 
 Final review shortened the ability-ready text and cooldown countdown so landscape buttons do not clip their status. Help now explains the real contract requirement: meet the target and clear buildings across all blocks. Validation: 178 unit checks and 21 browser scenarios passed; the five layout/navigation scenarios were repeated after the final copy edit. Production archive smoke also checks the map counter and keyboard recovery from Settings.
+
+## Navigation and driving pass (4.3)
+
+Keep the existing six colors and Fredoka. Use one fixed, labelled navigation deck across Home, Garage and Levels: Home / Garage / Levels / yellow Play. The context line names the actually selected machine and contract. Move the home Play into that same deck; remove screen-specific Back and cross-screen links, which previously forced players to search. Phone home prioritises the city and deck; vehicle browsing lives in Garage. Desktop retains its fleet preview above the deck.
+
+```
+brand                                  wallet / settings
+Home: title + current contract          city
+Garage: machine list / preview / details
+Levels: district / job cards
+[selected machine • current contract]
+[ Home ] [ Garage ] [ Levels ] [ Play ]
+```
+
+Review: a second Play in each screen would leave multiple competing actions. Keep one global Play, plus direct Start buttons on individual job cards. Distinguish purchase/select actions from starting a run. Pause presents Resume / Restart / Home; results prioritise Next contract over Replay. Escape returns from a hub screen to Home, and from results to Home. Preserve the selected contract through Garage/Levels.
+
+Driving copy must explain the actual controls: W/Up forward, S/Down reverse, A/D or Left/Right turn. A vertical touch joystick commands forward/reverse with a steering deadzone, so a small finger wobble cannot turn the machine.
+
+4.3 screenshot review: desktop, tablet portrait, 320px phone and short landscape show the same navigation and Play position. Phone home omits fleet shortcuts, leaving a clearer city view; Garage owns browsing. Purchase/Use stays fixed above the deck on compact screens and names the actual machine. The deck continues to name the currently selected machine while a locked preview is open. Verified 187 unit checks and 29 browser scenarios, including straight/reverse motion through real keyboard/touch handlers, retained jobs, Escape, direct garage launch and fixed purchase placement. Both extracted CrazyGames archives and five Pages routes passed their HTTP smoke checks.

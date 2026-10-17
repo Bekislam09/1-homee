@@ -1,4 +1,4 @@
-# Smash City v4.2 — delivery record
+# Smash City v4.3 — delivery record
 
 ## Completed implementation
 
@@ -13,9 +13,9 @@
 
 ## Verification
 
-- 178 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
+- 187 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
 - Regression coverage includes steering, ability timing, target occlusion, remixed collapse properties, unique block IDs, one-time settlement and legacy saves.
-- All 21 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
+- All 29 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
 - Local, CrazyGames Basic and CrazyGames Full production builds pass. Both game ZIPs pass integrity and extracted HTTP checks (real destruction, 25 coins, map counter, keyboard dialog recovery, no page errors, forced English, dev harness absent).
 - Production and ZIP checks are recorded in generated `releases/build-manifest.json` and `releases/http-smoke-report.json`. Run the commands in README to reproduce them.
 
@@ -41,3 +41,11 @@ Previous v3 implementation and verification history remains in Git; its Yandex a
 - Fixed a reproduced permanent-pause path caused by keyboard focus escaping Settings. Modal focus is contained, Escape closes appropriate windows, and focus returns to the trigger.
 - Preserved native keyboard button activation and platform/ad pause locks.
 - Reserved camera headroom below the HUD; checked the actual opaque silhouette of all five vehicles at spawn and the north boundary.
+
+## v4.3 navigation and driving
+
+- A single fixed navigation deck and Play action across Home, Garage and Levels; removed scattered Back/Go-to-links. Launch context names the actual selected machine and retained job.
+- Mobile purchase/selection remains visible above the deck while workshop content scrolls.
+- Escape returns hubs/results to Home, pause supports Restart (including free play), and Next contract is the primary win action.
+- Production input now uses throttle/steer. Forward and reverse preserve heading; only explicit steering rotates the machine. Reverse runs at 65%, with smooth braking and no sideways collision sliding.
+- Campaign tests use the same throttle/steer input. Legacy world x/y remains only for existing low-level fixtures. All 60 mission/machine combinations remain covered without changed timers.

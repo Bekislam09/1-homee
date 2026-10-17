@@ -6,6 +6,7 @@ import { AudioSystem } from './audio.js';
 import './style.css';
 import './theme.css';
 import './play-ui.css';
+import './navigation.css';
 import {createMinimap} from './minimap.js';
 import './final-copy.js';
 import {GameLifecycle} from './lifecycle.js';
@@ -57,7 +58,7 @@ let ramPointer = null;
 let joystickPointer = null;
 const keys = new Set();
 const joystick = { x: 0, y: 0 };
-const controls = { screen: 'menu', paused: false, effects: settings.effects,shake:settings.shake,quality:settings.quality, input: { x: 0, y: 0, ram: false } };
+const controls = { screen: 'menu', paused: false, effects: settings.effects,shake:settings.shake,quality:settings.quality, input: { throttle: 0, steer: 0, ram: false } };
 
 let sdkAdapter=new LocalPlatformAdapter();
 let sdkInitialized=false;
@@ -70,6 +71,11 @@ $('#app').innerHTML = `
   <a class="brand" href="#" id="brand" data-i18n-aria-label="homeAria" aria-label="${t('homeAria')}"><span class="brand-symbol">${svg('bolt')}</span><span>SMASH<span class="brand-light">CITY</span><small data-i18n="brandTagline">${t('brandTagline')}</small></span></a>
   <div class="header-actions"><span class="wallet">${svg('coin')}<b id="balance">${sim.balance}</b><span data-i18n="coins">${t('coins')}</span></span><button id="help" class="icon-button header-help" data-i18n-aria-label="howToPlay" aria-label="${t('howToPlay')}" title="How to play">?</button><button id="sound" class="icon-button" data-i18n-aria-label="soundToggle" aria-label="${t('soundToggle')}">${svg('sound')}</button><button id="settings" class="icon-button" data-i18n-aria-label="settings" aria-label="${t('settings')}">${svg('gear')}</button><button id="pause" class="icon-button hidden" data-i18n-aria-label="pause" aria-label="${t('pause')}">${svg('pause')}</button></div>
 </header>
+<section id="hub-nav" class="hub-nav" aria-label="Main navigation">
+  <div id="launch-context" class="launch-context"><span id="launch-machine"></span><span id="launch-mission"></span></div>
+  <nav class="hub-tabs" aria-label="Game screens"><button id="home-tab" data-hub="menu">${svg('house')}<span>Home</span></button><button id="garage" data-hub="garage">${svg('garage')}<span>Garage</span></button><button id="levels" data-hub="levels">${svg('levels')}<span>Levels</span></button></nav>
+  <button id="play" class="play-button" disabled><span>${svg('play')} <span id="play-label" data-i18n="loading">${t('loading')}</span></span></button>
+</section>
 <main id="menu" class="menu">
   <div class="hero">
 
@@ -77,8 +83,8 @@ $('#app').innerHTML = `
     <div class="campaign-badge">${svg('levels')} <span>12 demolition jobs to master</span></div><div class="subtitle" data-i18n="subtitle">${t('subtitle')}</div>
     <p class="hero-description" data-i18n-html="heroDescription">${t('heroDescription')}</p>
     <div class="mission-label"><span class="level-number">01</span><div><small data-i18n="firstShift">${t('firstShift')}</small><strong>${missionName(1)}</strong></div><span class="mission-arrow">${svg('arrow')}</span></div>
-    <button id="play" class="play-button" disabled><span>${svg('play')} <span id="play-label" data-i18n="loading">${t('loading')}</span></span>${svg('arrow')}</button>
-    <div class="hero-meta"><span>${svg('clock')}${t('seconds',{count:90})}</span><i></i><span>${svg('target')}${t('objectiveScore',{count:formatNumber(1000)})}</span><i></i><span>${t('nextShift')}</span></div><nav class="menu-nav"><button id="garage">${svg('garage')} <span data-i18n="garage">${t('garage')}</span></button><button id="levels">${svg('levels')} <span data-i18n="levels">${t('levels')}</span> <span>${MISSIONS.length}</span></button></nav><nav class="final-nav"><button id="achievements">${svg('trophy')}<span data-i18n="achievementsShort">${t('achievementsShort')}</span></button><button id="free-play">${svg('reset')}<span data-i18n="freePlay">${t('freePlay')}</span></button><button id="daily">${svg('coin')}<span data-i18n="daily">${t('daily')}</span></button></nav>
+
+    <div class="hero-meta"><span>${svg('clock')}${t('seconds',{count:90})}</span><i></i><span>${svg('target')}${t('objectiveScore',{count:formatNumber(1000)})}</span><i></i><span>${t('nextShift')}</span></div><nav class="final-nav"><button id="achievements">${svg('trophy')}<span data-i18n="achievementsShort">${t('achievementsShort')}</span></button><button id="free-play">${svg('reset')}<span data-i18n="freePlay">${t('freePlay')}</span></button><button id="daily">${svg('coin')}<span data-i18n="daily">${t('daily')}</span></button></nav>
   </div>
   <div class="scene-caption"><span class="tiny-rule"></span> ${t('districtNumber',{number:'01'})}<span class="caption-dot"></span>${districtName('town').toUpperCase()}</div>
 
@@ -101,14 +107,14 @@ $('#app').innerHTML = `
   <aside id="site-map" class="site-map" aria-label="Current block map"><div class="map-heading"><span>Site map</span><b id="map-remaining"></b></div><canvas id="minimap" width="240" height="160" aria-hidden="true"></canvas><small><i></i>You <span>•</span> Blue: buildings</small></aside>
   <div class="run-coins"><small data-i18n="shiftCoins">${t('shiftCoins')}</small><b>${svg('coin')} <span id="run-coins">0</span></b></div>
   <div id="combo" class="combo hidden"><span data-i18n="comboLabel">${t('comboLabel')}</span><b>×<span id="combo-value">1</span></b><small data-i18n="comboMultiplier">${t('comboMultiplier')}</small></div>
-  <div class="desktop-hint"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span><span data-i18n="moveHint">${t('moveHint')}</span><span class="hint-divider"></span><span class="key wide-key" data-i18n="spaceKey">${t('spaceKey')}</span><span data-i18n="ramHint">${t('ramHint')}</span></div>
+  <div class="desktop-hint"><span class="key">W</span><span class="key">S</span><span>forward / reverse</span><span class="key">A</span><span class="key">D</span><span>turn</span><span class="hint-divider"></span><span class="key wide-key" data-i18n="spaceKey">${t('spaceKey')}</span><span data-i18n="ramHint">${t('ramHint')}</span></div>
   <button id="ram" class="ram-button" data-i18n-aria-label="vehicle.dozer.abilityName" aria-label="${t('vehicle.dozer.abilityName')}"><span class="ram-symbol">${svg('bolt')}</span><span><strong data-i18n="vehicle.dozer.abilityName">${t('vehicle.dozer.abilityName')}</strong><small id="ram-status" data-i18n="ramReady">${t('ramReady')}</small></span><div class="ram-track"><span id="ram-progress"></span></div></button>
-  <div id="joystick" class="joystick" data-i18n-aria-label="joystickAria" aria-label="${t('joystickAria')}"><span class="joystick-arrows">＋</span><span id="joystick-stick"></span></div>
+  <div id="joystick" class="joystick" data-i18n-aria-label="joystickAria" aria-label="${t('joystickAria')}"><span class="joystick-arrows" aria-hidden="true">↑<br>↶　↷<br>↓</span><small class="joystick-caption">Drive / reverse · Turn</small><span id="joystick-stick"></span></div>
   <div class="level-pill"><span id="hud-location">${t('hudLocation',{number:'01',district:districtName('town').toUpperCase()})}</span><span id="hud-score">${t('hudScore',{score:0})}</span></div>
 </section>
 <button id="restore-map" class="secondary-button hidden" data-i18n="restoreMap">${t('restoreMap')}</button>
 <div id="toast" class="toast hidden" role="status"></div>
-<div id="pause-overlay" class="overlay hidden"><section class="modal pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="modal-icon">${svg('pause')}</div><div class="eyebrow" data-i18n="pauseEyebrow">${t('pauseEyebrow')}</div><h2 id="pause-title" data-i18n="pauseTitle">${t('pauseTitle')}</h2><p data-i18n="pauseDescription">${t('pauseDescription')}</p><button id="resume" class="play-button"><span data-i18n="resume">${t('resume')}</span> ${svg('play')}</button><button id="pause-menu" class="text-button" data-i18n="mainMenu">${t('mainMenu')}</button></section></div>
+<div id="pause-overlay" class="overlay hidden"><section class="modal pause-modal" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="modal-icon">${svg('pause')}</div><div class="eyebrow" data-i18n="pauseEyebrow">${t('pauseEyebrow')}</div><h2 id="pause-title" data-i18n="pauseTitle">${t('pauseTitle')}</h2><p data-i18n="pauseDescription">${t('pauseDescription')}</p><button id="resume" class="play-button"><span data-i18n="resume">${t('resume')}</span> ${svg('play')}</button><button id="restart" class="secondary-button">${svg('reset')} Restart</button><button id="pause-menu" class="text-button" data-i18n="mainMenu">${t('mainMenu')}</button></section></div>
 <div id="dialog" class="overlay hidden"></div>`;
 
 const modalFocus = new ModalFocus($('#app'), [$('#pause-overlay'), $('#dialog')]);
@@ -144,7 +150,7 @@ function clearInput() {
   sim.cancelBufferedAbility?.();
   keys.clear(); joystick.x = joystick.y = 0;
   ramPointer = joystickPointer = null;
-  controls.input.x = controls.input.y = 0;
+  controls.input.throttle = controls.input.steer = 0;
   controls.input.ram = false;
   controls.ramQueued = false;
   $('#joystick-stick').style.transform = 'translate(0px, 0px)';
@@ -156,17 +162,34 @@ function focusGame() {
   $('#game').focus({ preventScroll: true });
 }
 function updateInput() {
-  let sx = joystick.x, sy = joystick.y;
-  if (keys.has('KeyW') || keys.has('ArrowUp')) sy -= 1;
-  if (keys.has('KeyS') || keys.has('ArrowDown')) sy += 1;
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) sx -= 1;
-  if (keys.has('KeyD') || keys.has('ArrowRight')) sx += 1;
-  let x = sx / 1.732 + sy, y = -sx / 1.732 + sy;
-  const length = Math.hypot(x, y);
-  if (length > 0) { const magnitude=Math.min(1,Math.hypot(sx,sy)); x=x/length*magnitude; y=y/length*magnitude; }
-  controls.input.x = x; controls.input.y = y;
+  const axis=(value,deadzone)=>Math.abs(value)<=deadzone?0:Math.sign(value)*(Math.abs(value)-deadzone)/(1-deadzone);
+  let throttle=axis(-joystick.y,.12),steer=axis(joystick.x,.18);
+  if (keys.has('KeyW') || keys.has('ArrowUp')) throttle += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) throttle -= 1;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) steer -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) steer += 1;
+  controls.input.throttle=Math.max(-1,Math.min(1,throttle));
+  controls.input.steer=Math.max(-1,Math.min(1,steer));
   controls.input.ram = keys.has('Space') || ramPointer !== null;
 }
+function updateNavigation(){
+  const visible=['menu','garage','levels'].includes(controls.screen);
+  $('#hub-nav').classList.toggle('hidden',!visible);
+  document.body.dataset.screen=controls.screen;
+  document.querySelectorAll('[data-hub]').forEach(button=>{
+    if(button.dataset.hub===controls.screen)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+  });
+  $('#launch-machine').textContent=vehicleName(progress.state.selectedVehicle);
+  $('#launch-mission').textContent=`Job ${activeMissionId}: ${missionName(activeMissionId)}`;
+  $('#play').setAttribute('aria-describedby','launch-context');
+}
+function nextAfterVictory(){
+  if(sim.phase==='won'&&!sim.freeMode)activeMissionId=Math.min(MISSIONS.length,sim.mission.id+1);
+}
+function restart(){
+  if(sim.freeMode)startFree(sim.mission.district);else start(sim.mission.id);
+}
+
 function setMenuVisible(value) {
   if(value)$('#restore-map').classList.add('hidden');
   $('#garage-screen').classList.add('hidden');$('#levels-screen').classList.add('hidden');document.body.classList.remove('in-hub');
@@ -174,6 +197,7 @@ function setMenuVisible(value) {
   $('#hud').classList.toggle('hidden', value);
   $('#pause').classList.toggle('hidden', value);
   document.body.classList.toggle('in-game', !value);
+  updateNavigation();
 }
 function start(missionId=activeMissionId) {
   if(ads.busy||adTransition)return;
@@ -194,6 +218,7 @@ function start(missionId=activeMissionId) {
   updateHud(true);
 }
 function menu() {
+  nextAfterVictory();
   sim.reset();
   controls.screen = 'menu';clearDialogPause();life.resetUserPause();
   clearInput();
@@ -202,6 +227,7 @@ function menu() {
   setMenuVisible(true);
   scene.resetViews();
   updateMenuMission();
+  modalFocus.sync();$('#home-tab').focus({preventScroll:true});
 }
 function pause(value = true) {
   if (controls.screen !== 'playing') return;
@@ -261,11 +287,11 @@ function finish() {
   $('#toast').classList.add('hidden'); $('#pause-overlay').classList.add('hidden');
   audio.play(sim.phase === 'won' ? 'win' : 'lose');
   notifyAchievements();renderResult();
-  $('#replay').focus();
+  ($('#next-contract')||$('#replay')).focus();
 }
 // Rendering the translated result must never settle the same run again.
 function renderResult() {
-  modalFocus.setCloseHandler($('#dialog'), null);
+  modalFocus.setCloseHandler($('#dialog'), menu);
   const won = sim.phase === 'won';
   const defeatKey=sim.mission.objective==='score'?'defeatScore':sim.mission.objective==='destroy'?'defeatDestroy':'defeatChain';
   $('#dialog').innerHTML = `<section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title">
@@ -278,7 +304,7 @@ function renderResult() {
     ${won?`<p class="result-bonus">${t('resultBonus',{coins:lastSettlement.bonus,stars:lastSettlement.stars})}<br>${t(sim.mission.id<MISSIONS.length?'nextMissionUnlocked':'allUnlocked')}</p>`:''}
     ${sdkAdapter.canRewarded&&won&&!progress.state.rewardedRuns[sim.runId]?.claimed?`<button id="double-reward" class="play-button reward-button">${t('doubleCoins')} ${svg('coin')}</button><p class="ad-note">${t('doubleRewardDescription',{coins:sim.coins+(lastSettlement?.bonus||0)})}</p><button id="continue-without-ad" class="text-button">${t('continueWithoutAd')}</button>`:''}
     ${won&&sim.mission.id<MISSIONS.length?`<button id="next-contract" class="play-button next-contract">Next contract ${svg('arrow')}</button>`:''}
-    <button id="replay" class="play-button">${t(won ? 'replay' : 'retry')} ${svg('reset')}</button>
+    <button id="replay" class="${won&&sim.mission.id<MISSIONS.length?'secondary-button':'play-button'}">${t(won ? 'replay' : 'retry')} ${svg('reset')}</button>
     <div class="result-links"><button id="result-garage" class="text-button">${t('garage')} ${svg('garage')}</button><button id="result-levels" class="text-button">${t('levels')} ${svg('levels')}</button><button id="back-menu" class="text-button">${t('menu')} ${svg('arrow')}</button></div>
   </section>`;
   $('#dialog').classList.remove('hidden');
@@ -286,7 +312,7 @@ function renderResult() {
   if($('#double-reward'))$('#double-reward').onclick=claimAdReward;
   if($('#continue-without-ad'))$('#continue-without-ad').onclick=openLevels;
   if($('#next-contract'))$('#next-contract').onclick=()=>start(sim.mission.id+1);
-  $('#replay').onclick = ()=>start(activeMissionId); $('#back-menu').onclick = menu;
+  $('#replay').onclick = ()=>start(sim.mission.id); $('#back-menu').onclick = menu;
   $('#result-garage').onclick=openGarage;$('#result-levels').onclick=openLevels;
 }
 function updateHud(force = false) {
@@ -354,19 +380,19 @@ controls.onFrame = () => {
 };
 
 $('#play').onclick = ()=>start();
-$('#garage').onclick=openGarage;$('#levels').onclick=openLevels;
+$('#garage').onclick=openGarage;$('#levels').onclick=openLevels;$('#home-tab').onclick=menu;
 $('#brand').onclick = event => { event.preventDefault(); if (scene) menu(); };
 $('#settings').onclick = openSettings;
 $('#help').onclick = help;
 $('#pause').onclick = () => pause(!controls.paused);
 $('#resume').onclick = () => pause(false);
-$('#pause-menu').onclick = menu;
+$('#pause-menu').onclick = menu;$('#restart').onclick=restart;
 $('#sound').onclick = () => { audio.init(); settings.sound = !settings.sound; life.sync(); soundButton(); save(); };
 soundButton();
 
 const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Space'];
 window.addEventListener('keydown', event => {
-  if (event.code === 'Escape' && $('#dialog').classList.contains('hidden')) { event.preventDefault(); if (!event.repeat) pause(!controls.paused); }
+  if (event.code === 'Escape' && $('#dialog').classList.contains('hidden')) { event.preventDefault(); if (!event.repeat) { if(['garage','levels'].includes(controls.screen))menu();else pause(!controls.paused); } }
   if (event.target.closest('input,select,textarea,[contenteditable="true"]') ||
       (event.code === 'Space' && event.target.closest('button,a'))) return;
   if (!movementKeys.includes(event.code) || controls.screen !== 'playing' || controls.paused) return;
@@ -443,8 +469,7 @@ function artUrl(key){
   return textureUrls.get(key);
 }
 function updateMenuMission(){
-  const nextId=MISSIONS.find(m=>!progress.state.completedLevels.includes(m.id))?.id;
-  if(controls.screen==='menu'&&nextId)activeMissionId=nextId;
+  updateNavigation();
   const mission=getMission(activeMissionId);
   if(scene){
     const selected=progress.state.selectedVehicle;
@@ -459,7 +484,7 @@ function updateMenuMission(){
 }
 function enterHub(name){
   if(!scene)return false;
-  if(ads.busy)return false;clearInput();controls.screen=name;clearDialogPause();life.resetUserPause();
+  if(ads.busy)return false;nextAfterVictory();clearInput();controls.screen=name;clearDialogPause();life.resetUserPause();
   $('#dialog').classList.add('hidden');$('#pause-overlay').classList.add('hidden');$('#toast').classList.add('hidden');
   setMenuVisible(false);$('#hud').classList.add('hidden');$('#pause').classList.add('hidden');
   document.body.classList.add('in-hub');
@@ -470,12 +495,12 @@ function openGarage(){
   if(!enterHub('garage'))return;
   garageVehicle=progress.state.selectedVehicle;
   $('#garage-screen').classList.remove('hidden');
-  renderGarage();
+  renderGarage();$('#garage').focus({preventScroll:true});
 }
 function renderGarage(){
   const selected=VEHICLES[garageVehicle],owned=progress.state.ownedVehicles.includes(garageVehicle),active=progress.state.selectedVehicle===garageVehicle;
-  $('#garage-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('garageEyebrow')}</div><h2>${t('garageTitle')}</h2></div><button id="garage-back" class="secondary-button">${svg('arrow','back-arrow')} ${t('backMenu')}</button></div><div class="garage-layout"><div id="garage-list" class="vehicle-list">${Object.values(VEHICLES).map((v,i)=>`<button data-vehicle="${v.id}" class="vehicle-card ${garageVehicle===v.id?'viewing':''}" aria-pressed="${garageVehicle===v.id}"><img src="${artUrl(`garage-${v.id}`)}" alt=""><span><strong>${vehicleName(v.id)}</strong><small>${progress.state.selectedVehicle===v.id?t('vehicleSelectedUpper'):progress.state.ownedVehicles.includes(v.id)?t('vehicleOwnedUpper'):t('vehiclePriceUpper',{price:v.price})}</small></span>${svg(progress.state.ownedVehicles.includes(v.id)?'check':'lock')}</button>`).join('')}<div class="garage-tip">${svg('bolt')}<p>${t('garageTip')}</p></div></div><div class="workshop-stage"><img class="workshop-room" src="${artUrl('garage-room')}" alt="${t('workshopAria')}"><img id="vehicle-preview" class="workshop-vehicle ${garageVehicle}" src="${artUrl(`garage-${garageVehicle}`)}" alt="${vehicleName(selected.id)}"><div class="workshop-plate">${svg('garage')} ${vehicleName(selected.id)}</div></div><div class="vehicle-details"><div class="eyebrow">${owned?t('vehicleReady'):t('vehicleNew')}</div><h3>${vehicleName(selected.id)}</h3><div class="vehicle-subtitle">${vehicleText(selected.id,'subtitle')}</div><p>${vehicleText(selected.id,'description')}</p><div class="ability-spec"><span>${svg('bolt')} ${vehicleText(selected.id,'abilityName')}</span><small>${t('cooldown',{seconds:selected.cooldown.toFixed(1)})}</small></div><div class="vehicle-traits"><span>${t('movementSpeed')}</span><div>${[1,2,3].map(n=>`<i class="${n<=(selected.speed>=155?3:selected.speed>=135?2:1)?'filled':''}"></i>`).join('')}</div></div><div class="vehicle-price"><small>${owned?t('inGarage'):t('price')}</small><strong>${owned?t('purchased'):`${selected.price} ◇`}</strong></div><button id="vehicle-action" class="play-button" ${active?'disabled':''}>${active?t('selected'):owned?t('selectVehicle'):t('purchaseFor',{price:selected.price})} ${svg(active?'check':owned?'arrow':'coin')}</button>${!owned&&sim.balance<selected.price?`<div class="funds-note">${t('needCoins',{count:selected.price-sim.balance})}</div>`:''}<button id="garage-missions" class="text-button">${t('toMissions')} ${svg('levels')}</button></div></div>`;
-  $('#garage-back').onclick=menu;$('#garage-missions').onclick=openLevels;
+  $('#garage-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('garageEyebrow')}</div><h2>${t('garageTitle')}</h2></div></div><div class="garage-layout"><div id="garage-list" class="vehicle-list">${Object.values(VEHICLES).map((v,i)=>`<button data-vehicle="${v.id}" class="vehicle-card ${garageVehicle===v.id?'viewing':''}" aria-pressed="${garageVehicle===v.id}"><img src="${artUrl(`garage-${v.id}`)}" alt=""><span><strong>${vehicleName(v.id)}</strong><small>${progress.state.selectedVehicle===v.id?t('vehicleSelectedUpper'):progress.state.ownedVehicles.includes(v.id)?t('vehicleOwnedUpper'):t('vehiclePriceUpper',{price:v.price})}</small></span>${svg(progress.state.ownedVehicles.includes(v.id)?'check':'lock')}</button>`).join('')}<div class="garage-tip">${svg('bolt')}<p>${t('garageTip')}</p></div></div><div class="workshop-stage"><img class="workshop-room" src="${artUrl('garage-room')}" alt="${t('workshopAria')}"><img id="vehicle-preview" class="workshop-vehicle ${garageVehicle}" src="${artUrl(`garage-${garageVehicle}`)}" alt="${vehicleName(selected.id)}"><div class="workshop-plate">${svg('garage')} ${vehicleName(selected.id)}</div></div><div class="vehicle-details"><div class="eyebrow">${owned?t('vehicleReady'):t('vehicleNew')}</div><h3>${vehicleName(selected.id)}</h3><div class="vehicle-subtitle">${vehicleText(selected.id,'subtitle')}</div><p>${vehicleText(selected.id,'description')}</p><div class="ability-spec"><span>${svg('bolt')} ${vehicleText(selected.id,'abilityName')}</span><small>${t('cooldown',{seconds:selected.cooldown.toFixed(1)})}</small></div><div class="vehicle-traits"><span>${t('movementSpeed')}</span><div>${[1,2,3].map(n=>`<i class="${n<=(selected.speed>=155?3:selected.speed>=135?2:1)?'filled':''}"></i>`).join('')}</div></div><div class="vehicle-price"><small>${owned?t('inGarage'):t('price')}</small><strong>${owned?t('purchased'):`${selected.price} ◇`}</strong></div><button id="vehicle-action" class="play-button" ${active?'disabled':''}>${active?t('selected'):owned?`Use ${vehicleName(selected.id)}`:`Buy ${vehicleName(selected.id)} · ${formatNumber(selected.price)} coins`} ${svg(active?'check':owned?'arrow':'coin')}</button>${!owned&&sim.balance<selected.price?`<div class="funds-note">${t('needCoins',{count:selected.price-sim.balance})}</div>`:''}</div></div>`;
+
   document.querySelectorAll('[data-vehicle]').forEach(button=>button.onclick=()=>{garageVehicle=button.dataset.vehicle;renderGarage();});
   $('#vehicle-action').onclick=()=>{
     if(!progress.state.ownedVehicles.includes(garageVehicle)){
@@ -486,21 +511,21 @@ function renderGarage(){
       audio.init();audio.play('coin');
       toast(t('vehiclePurchased',{vehicle:vehicleName(garageVehicle)}));
     }
-    progress.selectVehicle(garageVehicle);notifyAchievements();save();renderGarage();
+    progress.selectVehicle(garageVehicle);notifyAchievements();save();renderGarage();updateNavigation();
   };
 }
 function openLevels(){
   if(!enterHub('levels'))return;
   districtFilter=getMission(activeMissionId).district;
-  $('#levels-screen').classList.remove('hidden');renderLevels();
+  $('#levels-screen').classList.remove('hidden');renderLevels();$('#levels').focus({preventScroll:true});
 }
 function renderLevels(){
   const district=DISTRICTS[districtFilter],districtOpen=progress.state.unlockedDistricts.includes(districtFilter);
-  $('#levels-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('levelsEyebrow')}</div><h2>${t('levelsTitle')}</h2></div><button id="levels-back" class="secondary-button">${svg('arrow','back-arrow')} ${t('backMenu')}</button></div><div class="level-toolbar"><div class="district-tabs">${Object.values(DISTRICTS).map(d=>`<button data-district="${d.id}" class="${d.id===districtFilter?'active':''}" aria-pressed="${d.id===districtFilter}">${svg(progress.state.unlockedDistricts.includes(d.id)?'levels':'lock')}${districtName(d.id)}</button>`).join('')}</div><button id="levels-garage" class="selected-machine">${svg('garage')} ${vehicleName(progress.state.selectedVehicle)} ${svg('arrow')}</button></div><div class="district-description"><p>${districtText(district.id,'description')}</p><small>${districtOpen?t('starsDescription'):t('districtLocked')}</small></div><div class="mission-grid">${MISSIONS.filter(m=>m.district===districtFilter).map(m=>{
+  $('#levels-screen').innerHTML=`<div class="hub-heading"><div><div class="eyebrow">${t('levelsEyebrow')}</div><h2>${t('levelsTitle')}</h2></div></div><div class="level-toolbar"><div class="district-tabs">${Object.values(DISTRICTS).map(d=>`<button data-district="${d.id}" class="${d.id===districtFilter?'active':''}" aria-pressed="${d.id===districtFilter}">${svg(progress.state.unlockedDistricts.includes(d.id)?'levels':'lock')}${districtName(d.id)}</button>`).join('')}</div></div><div class="district-description"><p>${districtText(district.id,'description')}</p><small>${districtOpen?t('starsDescription'):t('districtLocked')}</small></div><div class="mission-grid">${MISSIONS.filter(m=>m.district===districtFilter).map(m=>{
     const unlocked=progress.isLevelUnlocked(m.id),record=progress.state.records[m.id];
     return `<article data-mission="${m.id}" class="mission-tile ${unlocked?'':'locked'}"><div class="mission-illustration ${m.district}"><span class="mission-tile-number">${String(m.id).padStart(2,'0')}</span><img src="${artUrl(`${m.district==='town'?(m.id===1?'shed':'house'):(m.id===3?'tower':'warehouse')}-0`)}" alt=""><div class="tile-stars">${[1,2,3].map(n=>`<span class="${n<=(record?.stars||0)?'earned':''}">${svg('star')}</span>`).join('')}</div>${!unlocked?`<span class="tile-lock">${svg('lock')}</span>`:''}</div><div class="mission-tile-body"><small>${t('missionEyebrow',{number:String(m.id).padStart(2,'0'),objective:t(m.objective==='chain'?'missionChain':m.objective==='destroy'?'missionDestroy':'missionScore')})}</small><h3>${missionName(m.id)}</h3><p>${missionText(m.id,'description')}</p><div class="mission-numbers"><span>${svg('clock')}${t('shortSeconds',{count:m.duration})}</span><span>${svg('coin')}${t('missionBonus',{count:record?Math.floor(m.reward*.25):m.reward})}</span></div><div class="mission-record">${record?`<span>${t('record')} <b>${formatNumber(record.bestScore)}</b></span><span>${t('recordCombo')} <b>×${record.bestCombo}</b></span><span>${t('recordTime')} <b>${t('shortSeconds',{count:record.bestTime.toFixed(1)})}</b></span><span>${t('recordWins')} <b>${record.wins}</b></span>`:`<span>${t('firstRecord')}</span>`}</div><div class="star-rules">${svg('star')} ${t('starRules',{two:m.starTimes[0],three:m.starTimes[1]})}</div><button data-start-mission="${m.id}" class="play-button" ${unlocked?'':'disabled'}>${unlocked?(record?t('beatRecord'):t('startShift')):t('completeMission',{number:m.id-1})} ${svg(unlocked?'play':'lock')}</button></div></article>`;
   }).join('')}</div><div class="levels-footer">${svg('coin')} ${t('replayEconomy')}</div>`;
-  $('#levels-back').onclick=menu;$('#levels-garage').onclick=openGarage;
+
   document.querySelectorAll('[data-district]').forEach(button=>button.onclick=()=>{districtFilter=button.dataset.district;renderLevels();});
   document.querySelectorAll('[data-start-mission]').forEach(button=>button.onclick=()=>start(Number(button.dataset.startMission)));
 }

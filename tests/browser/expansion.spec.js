@@ -6,7 +6,7 @@ test('home controls remain visible across desktop, portrait and landscape layout
   await page.setViewportSize(size);
   await expect.poll(()=>page.evaluate(()=>window.__smash.game.scale.width)).toBe(size.width);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(size.width);
-  for(const selector of ['#play','#garage','#levels','#help','[data-home-vehicle="drill"]']){
+  for(const selector of ['#play','#home-tab','#garage','#levels','#help']){
    const box=await page.locator(selector).boundingBox();expect(box).not.toBeNull();
    expect(box.x).toBeGreaterThanOrEqual(0);expect(box.y).toBeGreaterThanOrEqual(0);
    expect(box.x+box.width).toBeLessThanOrEqual(size.width+1);expect(box.y+box.height).toBeLessThanOrEqual(size.height+1);

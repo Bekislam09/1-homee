@@ -49,6 +49,10 @@ try {
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
     assert.equal(await page.locator('meta[name="smash-platform"]').getAttribute('content'), 'local');
     assert.equal(await page.evaluate(() => window.__smash === undefined), true);
+    await page.click('#garage');
+    await page.click('#levels');
+    await page.click('#home-tab');
+    assert.equal(await page.locator('#home-tab').getAttribute('aria-current'), 'page');
     await page.click('#play');
     await page.keyboard.press('Space');
     await page.waitForFunction(() => document.querySelector('#run-coins').textContent === '25');
@@ -60,7 +64,7 @@ try {
     assert.equal(await page.locator('#settings').evaluate(el => document.activeElement === el), true);
     assert.deepEqual(errors, [], 'JavaScript errors');
     assert.deepEqual(missing, [], 'Missing or unexpected resources');
-    console.log(`${scenario.source}/${scenario.entry || '(index)'} -> ${scenario.destination || '(index)'}: Play, destruction, 25 coins, English, map, dialog recovery and assets passed`);
+    console.log(`${scenario.source}/${scenario.entry || '(index)'} -> ${scenario.destination || '(index)'}: Play, destruction, 25 coins, English, hub navigation, map, dialog recovery and assets passed`);
     await context.close();
   }
   console.log('Local Pages emulation passed. This does not verify the public deployment.');

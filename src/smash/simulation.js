@@ -255,10 +255,14 @@ export class Simulation {
   update(dt, input = {}) {
     this.events = [];
     if (this.phase !== 'playing' || !Number.isFinite(dt) || dt <= 0) return;
-    let ix = Number.isFinite(input.x) ? clamp(input.x, -1, 1) : 0;
-    let iy = Number.isFinite(input.y) ? clamp(input.y, -1, 1) : 0;
+    // Normal controls are relative to the machine: throttle moves along its
+    // facing and steer is the only control that changes that facing. Keep the
+    // old world-vector API for saved low-level physics fixtures only.
+    const tankControls = !Object.hasOwn(input, 'x') && !Object.hasOwn(input, 'y');
+    let ix = Number.isFinite(tankControls ? input.throttle : input.x) ? clamp(tankControls ? input.throttle : input.x, -1, 1) : 0;
+    let iy = Number.isFinite(tankControls ? input.steer : input.y) ? clamp(tankControls ? input.steer : input.y, -1, 1) : 0;
     const length = Math.hypot(ix, iy);
-    if (length > 1) { ix /= length; iy /= length; }
+    if (!tankControls && length > 1) { ix /= length; iy /= length; }
     if (input.ramPressed || (input.ram && !this._ramHeld)) {
       // Accept a deliberate tap just before the cooldown finishes. Holding the
       // button still produces only one activation, never automatic repeats.
@@ -271,12 +275,12 @@ export class Simulation {
     let remaining = Math.min(dt, this.timeLeft);
     while (remaining > EPSILON && this.phase === 'playing') {
       const step = Math.min(remaining, 1 / 60);
-      this._step(step, ix, iy);
+      this._step(step, ix, iy, tankControls);
       remaining -= step;
     }
   }
 
-  _step(dt, ix, iy) {
+  _step(dt, ix, iy, tankControls) {
     const p = this.player;
     this.timeLeft = Math.max(0, this.timeLeft - dt);
     this.elapsed += dt;
@@ -331,6 +335,17 @@ export class Simulation {
           }
         }
       }
+    } else if (tankControls) {
+      // Preserve signed forward speed while turning. Rebuilding the velocity
+      // along the new facing prevents the sideways drift of the old controls.
+      let forwardSpeed = p.vx * Math.cos(p.heading) + p.vy * Math.sin(p.heading);
+      p.heading += iy * this.vehicle.turnRate * dt;
+      const targetSpeed = ix * this.vehicle.speed * (ix < 0 ? 0.65 : 1);
+      const braking = Math.abs(ix) < 0.01 || forwardSpeed * ix < 0;
+      forwardSpeed += (targetSpeed - forwardSpeed) * (1 - Math.exp(-dt * (braking ? 10 : 5)));
+      if (Math.abs(ix) < 0.01 && Math.abs(forwardSpeed) < 0.1) forwardSpeed = 0;
+      p.vx = Math.cos(p.heading) * forwardSpeed;
+      p.vy = Math.sin(p.heading) * forwardSpeed;
     } else {
       const response = 1 - Math.exp(-dt * (Math.hypot(ix, iy) > 0.01 ? 5 : 10));
       p.vx += (ix * this.vehicle.speed - p.vx) * response;
@@ -343,6 +358,7 @@ export class Simulation {
       }
       if(!wantsMove&&Math.hypot(p.vx,p.vy)<.1)p.vx=p.vy=0;
     }
+    const previousX = p.x, previousY = p.y;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
 
@@ -353,7 +369,9 @@ export class Simulation {
       const forward = -(Math.cos(p.heading) * c.nx + Math.sin(p.heading) * c.ny);
       const impact = -(p.vx * c.nx + p.vy * c.ny);
       // Sustained forward pressure chips slowly; a ram delivers one full hit.
-      const pushing = -(ix * c.nx + iy * c.ny) > 0.5;
+      const driveX = tankControls ? ix * Math.cos(p.heading) : ix;
+      const driveY = tankControls ? ix * Math.sin(p.heading) : iy;
+      const pushing = -(driveX * c.nx + driveY * c.ny) > 0.5;
       const ready = ramming ? building.lastRam !== this._ramSerial : building.hitCooldown <= EPSILON;
       if ((!ramming || this.vehicleId === 'dozer') && forward > 0.45 && ready && (ramming || impact > 45 || pushing)) {
         const damage = ramming ? 1 : 0.34;
@@ -361,18 +379,39 @@ export class Simulation {
         this._damage(building, damage, ramming);
       }
       if (building.hp > 0) {
-        p.x += c.nx * (c.depth + 0.001);
-        p.y += c.ny * (c.depth + 0.001);
         const inward = p.vx * c.nx + p.vy * c.ny;
-        if (inward < 0) { p.vx -= c.nx * inward; p.vy -= c.ny * inward; }
+        if (tankControls && inward < -EPSILON) {
+          // Retreat along the driven path to the contact surface. Correcting
+          // only its normal would inch the machine sideways along the wall.
+          const retreat = (c.depth + 0.001) / -inward;
+          p.x -= p.vx * retreat;
+          p.y -= p.vy * retreat;
+        } else {
+          p.x += c.nx * (c.depth + 0.001);
+          p.y += c.ny * (c.depth + 0.001);
+        }
+        if (inward < 0) {
+          if (tankControls) p.vx = p.vy = 0;
+          else { p.vx -= c.nx * inward; p.vy -= c.ny * inward; }
+        }
       }
     }
     const bx = clamp(p.x, RADIUS, WORLD_SIZE - RADIUS);
     const by = clamp(p.y, RADIUS, WORLD_SIZE - RADIUS);
-    if (bx !== p.x) p.vx = 0;
-    if (by !== p.y) p.vy = 0;
-    p.x = bx;
-    p.y = by;
+    if (tankControls && (bx !== p.x || by !== p.y)) {
+      const fraction = clamp(Math.min(
+        bx !== p.x ? (bx - previousX) / (p.x - previousX) : 1,
+        by !== p.y ? (by - previousY) / (p.y - previousY) : 1,
+      ), 0, 1);
+      p.x = previousX + (p.x - previousX) * fraction;
+      p.y = previousY + (p.y - previousY) * fraction;
+      p.vx = p.vy = 0;
+    } else {
+      if (bx !== p.x) p.vx = 0;
+      if (by !== p.y) p.vy = 0;
+      p.x = bx;
+      p.y = by;
+    }
     p.speed = Math.hypot(p.vx, p.vy);
     p.ramTime = Math.max(0, p.ramTime - dt);
     if (p.ramTime < EPSILON) {

@@ -42,7 +42,7 @@ test('legacy save, real garage purchases, ownership guards and selected machine 
   });
   expect(repeated).toEqual({ result: { ok: false, reason: 'already-owned' }, before: 3050, after: 3050 });
   await page.screenshot({ path: '/tmp/smash-part2-garage.png' });
-  await page.click('#garage-back');
+  await page.click('#home-tab');
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);
   expect(await inspect(page)).toMatchObject({ balance: 3050, selectedVehicle: 'excavator', settings: { sound: false } });
@@ -51,7 +51,7 @@ test('legacy save, real garage purchases, ownership guards and selected machine 
   await page.click('#vehicle-action');
   expect(await inspect(page)).toMatchObject({ balance: 50, ownedVehicles: ['dozer', 'excavator', 'wrecker'] });
   await selectOwned(page, 'wrecker');
-  await page.click('#garage-back');
+  await page.click('#home-tab');
   await page.click('#play');
   expect(await page.evaluate(() => window.__smash.sim.vehicleId)).toBe('wrecker');
   await expect(page.locator('#ram strong')).toHaveText('BALL SWING');
@@ -73,7 +73,7 @@ test('corrupt current save falls back safely; funds and locked-level guards prev
   expect((await inspect(page)).ownedVehicles).toEqual(['dozer']);
   expect(await page.evaluate(() => window.__smash.progress.purchase('excavator'))).toEqual({ ok: false, reason: 'insufficient-funds' });
   expect((await inspect(page)).balance).toBe(200);
-  await page.click('#garage-back');
+  await page.click('#home-tab');
   await page.click('#levels');
   await expect(page.locator('[data-start-mission="1"]')).toBeEnabled();
   await expect(page.locator('[data-start-mission="2"]')).toBeDisabled();
@@ -84,7 +84,7 @@ test('corrupt current save falls back safely; funds and locked-level guards prev
   await page.evaluate(() => window.__smash.start(4));
   expect(await page.evaluate(() => window.__smash.controls.screen)).not.toBe('playing');
   expect((await inspect(page)).balance).toBe(200);
-  await page.click('#levels-back');
+  await page.click('#home-tab');
   await page.click('#play');
   expect(await page.evaluate(() => window.__smash.sim.mission.id)).toBe(1);
 });
@@ -198,7 +198,7 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
   await page.click('#pause-menu');
   await page.click('#garage');
   await expect(page.locator('#garage-screen')).toBeVisible();
-  await page.click('#garage-back');
+  await page.click('#home-tab');
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);
   expect((await inspect(page)).records[3]).toEqual(saved.records[3]);
@@ -239,7 +239,7 @@ test('mobile garage and simultaneous real touch controls work for all five purch
   const client = await context.newCDPSession(page);
   for (const vehicle of ['dozer', 'excavator', 'wrecker','roller','drill']) {
     await selectOwned(page, vehicle);
-    await page.click('#garage-back');
+    await page.click('#home-tab');
     await page.click('#play');
     expect(await page.evaluate(() => window.__smash.sim.vehicleId)).toBe(vehicle);
     await expect(page.locator('#joystick')).toBeVisible();
@@ -247,17 +247,17 @@ test('mobile garage and simultaneous real touch controls work for all five purch
     const points = [{ x: joystick.x + joystick.width * .76, y: joystick.y + joystick.height * .5, id: 1 }, { x: ram.x + ram.width / 2, y: ram.y + ram.height / 2, id: 2 }];
     await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
     await page.waitForTimeout(150);
-    expect(await page.evaluate(() => window.__smash.controls.input.x)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__smash.controls.input.steer)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.__smash.controls.input.ram)).toBe(true);
     expect(await page.evaluate(() => window.__smash.sim.player.ramCooldown)).toBeGreaterThan(0);
     await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    expect(await page.evaluate(() => window.__smash.controls.input)).toEqual({ x: 0, y: 0, ram: false });
+    expect(await page.evaluate(() => window.__smash.controls.input)).toEqual({ throttle: 0, steer: 0, ram: false });
     await page.screenshot({ path: `/tmp/smash-part2-mobile-${vehicle}.png` });
     await page.click('#pause');
     await page.click('#pause-menu');
     await page.click('#garage');
   }
-  await page.click('#garage-back');
+  await page.click('#home-tab');
   await page.click('#play');
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForFunction(() => window.__smash.game.scale.width === innerWidth && window.__smash.game.scale.height === innerHeight);

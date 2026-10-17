@@ -21,7 +21,7 @@ export class CityScene extends Phaser.Scene {
     this.effectIndex = 0;
     this.labelIndex = 0;
     this.follow = { x: 0, y: 500 };
-    this.frameInput = {x: 0, y: 0, ram: false, ramPressed: false};
+    this.frameInput = {throttle: 0, steer: 0, ram: false, ramPressed: false};
   }
 
   create() {
@@ -65,12 +65,12 @@ export class CityScene extends Phaser.Scene {
       camera.centerOn(0,470);
     } else if (menu && w > 760) {
       const compact=h<=500;
-      camera.setViewport(w*.39,compact?55:100,w*.61,h-(compact?145:280));
-      camera.setZoom(Math.min(w*.61/1820,(h-(compact?145:280))/1100));
+      camera.setViewport(w*.39,compact?55:100,w*.61,h-(compact?145:370));
+      camera.setZoom(Math.min(w*.61/1820,(h-(compact?145:370))/1100));
       camera.centerOn(0, 470);
     } else if (menu) {
-      const top=h<=720?Math.max(h*.61,390):Math.min(h*.56,450);
-      const available=Math.max(100,h-top-(h<=720?134:150));
+      const top=h<=720?300:340;
+      const available=Math.max(100,h-top-120);
       camera.setViewport(0,top,w,available);
       camera.setZoom(Math.min(w/1820,available/1050));
       camera.centerOn(0, 470);

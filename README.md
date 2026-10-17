@@ -1,6 +1,6 @@
 # Smash City — City Demolition
 
-Version 4.2: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
+Version 4.3: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
 
 ## Run and verify
 
@@ -23,6 +23,10 @@ node scripts/smoke-releases.mjs
 
 ## What's new
 
+- One fixed Home / Garage / Levels / Play deck across all hub screens; the launch context shows the selected machine and job. Garage purchase/select controls stay within reach on phones.
+- Relative driving: W/Up moves forward, S/Down reverses, A/D or Left/Right turns. A straight forward/reverse command preserves heading; there is no automatic turn or lateral drift. Reverse uses 65% speed, and touch steering has a deadzone.
+- Escape returns hub screens to Home. Pause offers Resume, Restart and Home; results prioritise Next contract. Hub transitions retain the chosen job.
+
 - A live isometric site map shows standing, damaged and cleared buildings, plus your vehicle position and direction.
 - Contract instruments distinguish the score/chain target from mandatory clearance, with a separate completed state and block counter.
 - A 150ms ability input buffer accepts taps just before cooldown ends; pauses and block changes cancel pending taps.
@@ -43,7 +47,7 @@ node scripts/smoke-releases.mjs
 
 All twelve contracts are tested through continuous control input with each of the five machines. The starter bulldozer can complete the entire campaign. The timer ranges from 270 to 510 seconds; completion time depends on driving and machine choice. There is no forced minimum waiting period. Buildings award coins; combos multiply score only. Repeat completions pay 45% building coins and 25% mission bonus.
 
-WASD/arrows move, Space activates the ability and Esc pauses. Touch uses a joystick plus a separate ability button with simultaneous touches. Focus loss pauses the run. Free demolition has no timer or permanent coin earnings; restore the map to keep playing. Six achievements, daily rewards, sound, effects, shake and quality settings remain available.
+W/Up drives forward; S/Down reverses; A/D or Left/Right turns. Space activates the ability and Esc pauses. Touch uses a joystick (up/down drive/reverse, left/right turn) plus a separate ability button with simultaneous touches. Focus loss pauses the run. Free demolition has no timer or permanent coin earnings; restore the map to keep playing. Six achievements, daily rewards, sound, effects, shake and quality settings remain available.
 
 ## Saves and platform builds
 
@@ -61,7 +65,7 @@ Game ZIPs contain `index.html` at their root and relative assets. `releases/buil
 
 ## Validation limits
 
-178 unit checks and 21 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
+187 unit checks and 29 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, relative forward/reverse driving, touch deadzones, shared hub navigation, direct garage launches, restart and ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
 
 Real CrazyGames preview, advertising inventory, physical phones and hardware FPS still require external testing. Official documentation was unavailable through this environment's proxy (403), so current platform upload limits were not independently verified. No game-platform publication has been performed. The Vite Phaser chunk-size warning does not prevent builds.
 

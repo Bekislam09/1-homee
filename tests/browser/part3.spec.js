@@ -6,8 +6,8 @@ test('English-only edition ignores legacy Russian preference and retains setting
  await ready(page);await expect(page.locator('#play-label')).toHaveText('Play');await expect(page.locator('html')).toHaveAttribute('lang','en');
  await expect(page.locator('[data-home-vehicle]')).toHaveCount(5);
  await page.click('#garage');await expect(page.locator('[data-vehicle]')).toHaveCount(5);expect(await page.locator('#garage-screen').innerText()).not.toMatch(/[А-Яа-яЁё]/);
- await page.click('#garage-back');await page.click('#levels');await expect(page.locator('[data-mission]')).toHaveCount(6);expect(await page.locator('#levels-screen').innerText()).not.toMatch(/[А-Яа-яЁё]/);
- await page.click('#levels-back');await page.click('#settings');await expect(page.locator('#language')).toBeDisabled();await expect(page.locator('#language')).toHaveValue('en');
+ await page.click('#home-tab');await page.click('#levels');await expect(page.locator('[data-mission]')).toHaveCount(6);expect(await page.locator('#levels-screen').innerText()).not.toMatch(/[А-Яа-яЁё]/);
+ await page.click('#home-tab');await page.click('#settings');await expect(page.locator('#language')).toBeDisabled();await expect(page.locator('#language')).toHaveValue('en');
  await page.selectOption('#quality','low');await page.uncheck('#shake-check');await page.click('#settings-done');await page.reload();await expect(page.locator('#play-label')).toHaveText('Play');
  await page.click('#settings');await expect(page.locator('#quality')).toHaveValue('low');await expect(page.locator('#shake-check')).not.toBeChecked();expect(errors).toEqual([]);await context.close();
 });

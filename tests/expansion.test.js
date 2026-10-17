@@ -1,16 +1,57 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {Simulation} from '../src/smash/simulation.js';import {MISSIONS,VEHICLES} from '../src/smash/content.js';import {Progression} from '../src/smash/progression.js';import {driveDistrict} from './helpers/drive.js';
 const step=(s,n,input={})=>{const events=[];for(let i=0;i<n;i++){s.update(1/60,input);events.push(...s.events);}return events;};
-test('steering follows a bounded angular speed and Space cannot snap the facing direction',()=>{
- const s=new Simulation().start();Object.assign(s.player,{x:500,y:65});
- s.update(1/60,{x:1});assert(s.player.speed>0&&s.player.speed<20);
- for(let n=0;n<30;n++){const before=s.player.heading;s.update(1/60,{y:1});assert(Math.abs(s.player.heading-before)<=s.vehicle.turnRate/60+1e-8);}
- assert(Math.abs(s.player.heading-Math.PI/2)<1e-8);const before=s.player.heading;
- s.update(1/60,{x:-1,ramPressed:true});assert.equal(s.player.heading,before);
-});
-test('velocity reversals and released controls decelerate instead of jumping',()=>{
- const s=new Simulation().start();Object.assign(s.player,{x:500,y:65});step(s,30,{x:1});const before=s.player.vx;
- s.update(1/60,{x:-1});assert(s.player.vx>0&&s.player.vx<before);step(s,60);assert.equal(s.player.speed,0);
+for(const vehicleId of Object.keys(VEHICLES)){
+ test(`${vehicleId} drives strictly forward and backward at every tested facing without automatic turning`,()=>{
+  for(const heading of [0,Math.PI/4,Math.PI/2,Math.PI,-Math.PI/3])for(const throttle of [1,-1]){
+   const s=new Simulation().start({mode:'free',vehicleId});s.buildings=[];
+   Object.assign(s.player,{x:500,y:500,heading});
+   for(let n=0;n<60;n++){
+    s.update(1/60,{throttle,steer:0});
+    assert.equal(s.player.heading,heading,'throttle must never choose a new facing');
+    const sideways=s.player.vx*Math.sin(heading)-s.player.vy*Math.cos(heading);
+    assert(Math.abs(sideways)<1e-8,'velocity follows the machine rather than sliding sideways');
+   }
+   const dx=s.player.x-500,dy=s.player.y-500;
+   assert(Math.abs(dx*Math.sin(heading)-dy*Math.cos(heading))<1e-8,'the whole path remains straight');
+   assert((dx*Math.cos(heading)+dy*Math.sin(heading))*throttle>50);
+   const expected=s.vehicle.speed*(throttle<0?.65:1);
+   assert(s.player.speed>expected*.99&&s.player.speed<=expected);
+  }
+ });
+ test(`${vehicleId} turns only on deliberate steering and accelerates and brakes smoothly`,()=>{
+  const s=new Simulation().start({mode:'free',vehicleId});s.buildings=[];
+  Object.assign(s.player,{x:400,y:400});
+  for(let n=0;n<12;n++){
+   const before=s.player.heading;s.update(1/60,{throttle:0,steer:1});
+   assert(Math.abs(s.player.heading-before-s.vehicle.turnRate/60)<1e-8);
+   assert.equal(s.player.x,400);assert.equal(s.player.y,400);
+  }
+  const heading=s.player.heading;
+  s.update(1/60,{throttle:1});assert(s.player.speed>0&&s.player.speed<s.vehicle.speed*.1);
+  step(s,29,{throttle:1});const before=s.player.speed;
+  s.update(1/60,{throttle:-1});
+  const forwardSpeed=s.player.vx*Math.cos(heading)+s.player.vy*Math.sin(heading);
+  assert(forwardSpeed>0&&forwardSpeed<before,'reverse first brakes existing forward momentum');
+  assert.equal(s.player.heading,heading);
+  step(s,60,{throttle:-1});assert.equal(s.player.heading,heading);
+  assert(s.player.vx*Math.cos(heading)+s.player.vy*Math.sin(heading)<0);
+  const reversing=s.player.speed;s.update(1/60,{});assert(s.player.speed>0&&s.player.speed<reversing);
+  step(s,60);assert.equal(s.player.speed,0);assert.equal(s.player.heading,heading);
+  s.update(1/60,{throttle:1,steer:-1,ramPressed:true});
+  assert.equal(s.player.heading,heading,'an ability locks the current facing without snapping it');
+ });
+}
+test('straight throttle stops at an obstacle without turning or sliding along its wall',()=>{
+ const s=new Simulation().start({mode:'free'});
+ s.buildings=[{id:'wall',x:700,y:500,w:100,d:600,type:'house',hp:100,maxHp:100,points:100,reward:25,hitCooldown:0,lastRam:-1}];
+ Object.assign(s.player,{x:500,y:400,heading:Math.PI/6});
+ for(let n=0;n<180;n++){
+  s.update(1/60,{throttle:1});assert.equal(s.player.heading,Math.PI/6);
+  assert(Math.abs(s.player.vx*Math.sin(s.player.heading)-s.player.vy*Math.cos(s.player.heading))<1e-8);
+ }
+ const stopped={x:s.player.x,y:s.player.y};step(s,60,{throttle:1});
+ assert(Math.abs(s.player.x-stopped.x)<.001);assert(Math.abs(s.player.y-stopped.y)<.1);
 });
 test('a tap within the final 150ms of cooldown starts once as soon as the ability is ready',()=>{
  const s=new Simulation().start({vehicleId:'excavator'});assert(s.useRam());step(s,148);
