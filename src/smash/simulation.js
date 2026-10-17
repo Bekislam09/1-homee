@@ -2,8 +2,8 @@ import { VEHICLES, getMission } from './content.js';
 
 /** Gameplay stays in Cartesian world coordinates; the renderer owns projection. */
 export const WORLD_SIZE = 1000;
-export const GOAL = 1000;
-export const DURATION = 90;
+export const GOAL = getMission(1).target;
+export const DURATION = getMission(1).duration;
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -132,8 +132,8 @@ export class Simulation {
     this.bestChain = 0;
     this.destroyed = 0;
     this.events = [];
-    const layout = this.mission.district === 'industrial' ? INDUSTRIAL_BUILDINGS : BUILDINGS;
-    this.buildings = layout.map(building => ({ ...building, hitCooldown: 0, lastRam: -1 }));
+    this.sector=0;this._sectorWait=null;
+    this._loadBuildings();
     this.player = {
       x: 80, y: 180, vx: 0, vy: 0, heading: 0, speed: 0,
       ramTime: 0, ramCooldown: 0, abilityDuration: this.vehicle.duration,
@@ -144,11 +144,28 @@ export class Simulation {
     this._ramHeading = 0;
     this._ramHeld = false;
     this._abilityImpacted = false;
+    this._impactCount = 0;
     this.attackTarget = null;
     this._pointTargetId = null;
     this._collapses = [];
     this._chainSerial = 0;
     return this;
+  }
+
+  _loadBuildings(){
+    const layout = this.mission.district === 'industrial' ? INDUSTRIAL_BUILDINGS : BUILDINGS;
+    this.buildings = layout.map((building, index) => {
+      let type=building.type;
+      const variant=this.freeMode?0:((this.mission.variant||0)+this.sector);
+      // Keep the opening industrial domino chain readable in every contract.
+      if(variant && index>2){
+        const choices=this.mission.district==='town'?['kiosk','house','warehouse','shed']:['warehouse','containers','tower','house'];
+        type=choices[(index+variant)%choices.length];
+      }
+      const stats=BUILDING_TYPES[type];
+      const strength=this.freeMode||index<3?1:(this.mission.strength||1);
+      return {...building,...stats,collapseRadius:stats.collapseRadius,fallHeading:stats.fallHeading,id:this.sector?`sector-${this.sector+1}-${building.id}`:building.id,type,maxHp:stats.maxHp*strength,hp:stats.maxHp*strength,hitCooldown:0,lastRam:-1};
+    });
   }
 
   start(options = {}) {
@@ -185,13 +202,14 @@ export class Simulation {
     p.abilityElapsed = 0;
     this._ramHeading = p.heading;
     this._ramSerial++;
-    this._abilityImpacted = this.vehicleId === 'dozer';
+    this._abilityImpacted = this.vehicle.attack === 'ram';
+    this._impactCount=0;
     this.attackTarget = p.attackTarget = {
       x: p.x + Math.cos(p.heading) * this.vehicle.reach,
       y: p.y + Math.sin(p.heading) * this.vehicle.reach,
       radius: this.vehicle.radius, heading: p.heading,
     };
-    if (this.vehicleId === 'excavator') {
+    if (this.vehicle.attack === 'point') {
       const nearest = this._nearestBucketTarget();
       this._pointTargetId = nearest?.building.id ?? null;
       if (nearest && !inCircle(this.attackTarget.x, this.attackTarget.y, this.vehicle.radius, nearest.building)) {
@@ -235,7 +253,6 @@ export class Simulation {
     const length = Math.hypot(ix, iy);
     if (length > 1) { ix /= length; iy /= length; }
     if (input.ramPressed || (input.ram && !this._ramHeld)) {
-      if (length > 0.1 && this.player.ramTime <= 0) this.player.heading = Math.atan2(iy, ix);
       this.useRam();
     }
     this._ramHeld = Boolean(input.ram);
@@ -252,6 +269,17 @@ export class Simulation {
     const p = this.player;
     this.timeLeft = Math.max(0, this.timeLeft - dt);
     this.elapsed += dt;
+    if(this._sectorWait!==null){
+      this._sectorWait-=dt;
+      if(this._sectorWait<=0){
+        this.sector++;this._loadBuildings();this._sectorWait=null;this._collapses=[];
+        Object.assign(p,{x:80,y:180,vx:0,vy:0,heading:0,speed:0,ramTime:0,ramCooldown:0,attackTarget:null});
+        this.attackTarget=null;this._pointTargetId=null;this._ramHeld=false;
+        this.events.push({type:'sector',sector:this.sector+1,total:this.mission.sectors});
+      }
+      if(this.timeLeft<=EPSILON){this.timeLeft=0;this.phase='lost';this.events.push({type:'lose',x:p.x,y:p.y});}
+      return;
+    }
     p.ramCooldown = Math.max(0, p.ramCooldown - dt);
     this._comboTime = Math.max(0, this._comboTime - dt);
     if (this._comboTime === 0) this.combo = 0;
@@ -266,10 +294,12 @@ export class Simulation {
         p.vy = Math.sin(p.heading) * RAM_SPEED;
       } else {
         p.vx = p.vy = 0;
-        if (!this._abilityImpacted && p.abilityElapsed + EPSILON >= this.vehicle.impactAt) {
-          this._abilityImpacted = true;
+        const impacts=this.vehicle.impacts||[this.vehicle.impactAt];
+        if (this._impactCount < impacts.length && p.abilityElapsed + EPSILON >= impacts[this._impactCount]) {
+          this._impactCount++;
+          this._abilityImpacted = this._impactCount===impacts.length;
           this.events.push(this._abilityEvent('ability-impact'));
-          if (this.vehicleId === 'excavator') {
+          if (this.vehicle.attack === 'point') {
             const nearest = this._nearestBucketTarget();
             // The locked point attack cannot jump to a second building if a
             // pending collapse removed its original target during the windup.
@@ -284,11 +314,16 @@ export class Simulation {
         }
       }
     } else {
-      const response = 1 - Math.exp(-dt * (Math.hypot(ix, iy) > 0.01 ? 9 : 12));
+      const response = 1 - Math.exp(-dt * (Math.hypot(ix, iy) > 0.01 ? 5 : 10));
       p.vx += (ix * this.vehicle.speed - p.vx) * response;
       p.vy += (iy * this.vehicle.speed - p.vy) * response;
-      if (Math.hypot(p.vx, p.vy) > 1) p.heading = Math.atan2(p.vy, p.vx);
-      else if (Math.hypot(ix, iy) > 0.1) p.heading = Math.atan2(iy, ix);
+      const wantsMove=Math.hypot(ix,iy)>.1;
+      if(wantsMove){
+        const desired=Math.atan2(iy,ix);
+        const difference=Math.atan2(Math.sin(desired-p.heading),Math.cos(desired-p.heading));
+        p.heading+=clamp(difference,-this.vehicle.turnRate*dt,this.vehicle.turnRate*dt);
+      }
+      if(!wantsMove&&Math.hypot(p.vx,p.vy)<.1)p.vx=p.vy=0;
     }
     p.x += p.vx * dt;
     p.y += p.vy * dt;
@@ -327,6 +362,7 @@ export class Simulation {
       this.attackTarget = p.attackTarget = null;
     }
     this._processCollapses(dt);
+    if(!this.freeMode&&this.phase==='playing'&&this.sector+1<this.mission.sectors&&this.buildings.every(b=>b.hp<=0))this._sectorWait=.9;
     if (this.phase === 'playing' && this.timeLeft < EPSILON) {
       this.timeLeft = 0;
       this.phase = 'lost';
@@ -368,7 +404,7 @@ export class Simulation {
     if ((building.type === 'tower' || building.collapseRadius) && chain.count < CHAIN_LIMIT) {
       this._collapses.push({ building, chain, at: this.elapsed + (building.type === 'tower' ? 0.45 : 0.2) });
     }
-    if (!this.freeMode && this.progress >= this.goal && this.phase === 'playing') {
+    if (!this.freeMode && this.progress >= this.goal && this.destroyed >= (this.mission.minDestroyed||0) && this.phase === 'playing') {
       this.phase = 'won';
       this.events.push({ type: 'win', x: this.player.x, y: this.player.y });
     }

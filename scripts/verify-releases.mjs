@@ -10,7 +10,6 @@ const manifest = JSON.parse(await readFile(join(root, 'releases/build-manifest.j
 assert.equal(manifest.format, 1, 'Unexpected release manifest');
 const expected = [
   ['local', 'dist', 'local', 'basic', false],
-  ['yandex', 'releases/yandex', 'yandex', 'basic', true],
   ['crazygames-basic', 'releases/crazygames-basic', 'crazygames', 'basic', false],
   ['crazygames-full', 'releases/crazygames-full', 'crazygames', 'full', true],
 ];
@@ -72,6 +71,7 @@ for (const target of manifest.targets) {
     assert.equal(createHash('sha256').update(data).digest('hex'), target.files[i].sha256, `${target.name}/${name}: hash mismatch`);
     const source = data.toString('utf8');
     if (name === 'index.html') {
+      assert(source.includes('lang="en"'), `${target.name}: release must be English`);
       for (const [key, value] of [['smash-platform', target.platform], ['smash-crazy-mode', target.crazyMode], ['smash-ads', target.ads ? 'enabled' : 'disabled']]) {
         assert(source.includes(`name="${key}" content="${value}"`), `${target.name}: wrong ${key}`);
       }

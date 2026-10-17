@@ -1,53 +1,36 @@
-# Проверки перед модерацией
+# Smash City v4 — release checks
 
-Отмеченные пункты основаны на локальных автоматических проверках и просмотренных скриншотах. Callback-fixtures не являются живой рекламой. Физические устройства и platform-preview не проверены.
+This release targets English CrazyGames Basic/Full only. Yandex is postponed. Local fixtures do not count as live advertising or physical-device validation.
 
-## Игра и регрессии
-- [x] Все четыре уровня запускаются и проходимы через непрерывный тестовый ввод.
-- [x] Бульдозер, экскаватор и шар работают; ближайшая цель и область/момент урона проверены.
-- [x] Цепи конечны, соседний урон реален, выплаты однократны.
-- [x] Гараж, покупки, выбор, закрытые задания и рекорды работают.
-- [x] Все шесть достижений проверены событиями и порогами; UI первого достижения проверен браузером.
-- [x] Локальное сохранение v3 и миграции v1/v2, повреждённые/запрещённые хранилища проверены.
-- [x] Русский/английский, ручной приоритет, переключение и сохранение языка работают.
-- [x] Звук, эффекты, тряска, низкое качество и пауза работают в доступном Chromium.
-- [x] Свободный режим не выдаёт постоянных монет; карта восстанавливается.
-- [x] Ежедневный календарь ограничивает получение одним днём и сохраняет цикл без штрафа за пропуск.
+## Automated checks
 
-## Техническое качество
-- [x] Production-сборки созданы для Local, Yandex, CrazyGames Basic и Full.
-- [x] Три ZIP содержат index.html в корне и только игровые assets; CRC/SHA-256 проверены.
-- [x] Все три извлечённых ZIP проверены через отдельный HTTP-сервер с настоящим нажатием Space и получением 25 монет.
-- [x] При недоступном SDK игра остаётся играбельной, ошибок JavaScript в archive-smoke нет.
-- [x] В production отсутствует тестовый window.__smash.
-- [x] Нет пропавших ресурсов в выполненных HTTP-сценариях.
-- [x] 40 переключений районов после прогрева не увеличивали число объектов/текстур.
-- [x] Десять полных прохождений одной миссии подряд сохраняют награды/рекорды и стабильное число объектов/текстур.
-- [x] Пауза при потере фокуса, одновременные касания и поворот Canvas проверены в эмуляции.
-- [ ] Проверить физические Android/iPhone/планшет, безопасные зоны и браузеры площадок.
-- [ ] Измерить 30/60 FPS на реальном слабом оборудовании и полный heap-профиль.
-- [ ] Выполнить длительный ручной playtest, особенно по углам зданий и длинным цепям.
+- [x] Twelve contracts are winnable with each of five machines through continuous input.
+- [x] Acceleration, braking, bounded steering and ability timing/target occlusion are covered.
+- [x] Blocks preserve counters, use unique destruction IDs and settle the contract only once.
+- [x] Remixed buildings receive the correct collapse behavior for their current type.
+- [x] Existing saves, owned machines, coins, achievements and records survive the expansion.
+- [x] Purchases, locked levels, stars, rewards, daily gifts and free mode are covered.
+- [x] Local/Basic do not offer ads; Full callbacks and independent pause/mute reasons use explicit test fixtures.
+- [x] English is forced for Local/CrazyGames even with Russian browser/save preferences.
 
-## Реклама и SDK
-- [x] Реализованы вызовы и feature-detection Yandex SDK и CrazyGames SDK v3.
-- [x] Game Ready связан с готовностью ресурсов/UI, gameplayStart не относится к меню; порядок проверен тестовыми SDK.
-- [x] Basic-конфигурация запрещает рекламу и не показывает рекламные предложения.
-- [x] Full-конфигурация отдельная; локальная недоступность SDK не ломает игру.
-- [x] Подтверждённый callback, отмена, ошибка, timeout, поздний/двойной callback и двойной клик проверены контролируемыми ответами.
-- [x] Rewarded выдаётся один раз по runId, локальная идемпотентность переживает reload.
-- [x] Независимые причины паузы и принудительный mute не отменяются закрытием рекламы.
-- [x] Midgame запрашивается только между заездами и с ограничением частоты, не вместе с rewarded.
-- [ ] Сверить текущую официальную документацию после разрешения доменов (здесь proxy 403).
-- [ ] Проверить настоящую инициализацию Yandex SDK, Game Ready, Gameplay и pause/resume в platform iframe.
-- [ ] Проверить настоящий CrazyGames SDK.environment и настройки muteAudio в preview.
-- [ ] Проверить реальные fullscreen/rewarded: успех, отсутствие inventory, закрытие без награды, ошибка, вкладка, звук.
-- [ ] Получить подтверждение Full Launch/монетизации CrazyGames перед использованием Full ZIP.
+Run `npm test` and `npx playwright test`. Browser checks include real keyboard/touch input, mobile layout, smooth pose changes without additional textures, forty district switches after warming and ten full missions in one session. Resource-count checks do not establish a complete memory profile.
 
-## Материалы и публикация
-- [x] Описания RU/EN, управление, особенности, SDK-ограничения и инструкции подготовлены в PUBLISHING.md.
-- [x] Настоящие production-снимки меню/геймплея/гаража и обложки 16:9, 1:1, 2:3 созданы скриптом.
-- [ ] Сверить текущие ограничения количества файлов, размеров ZIP и форматов обложек в формах загрузки.
-- [ ] Проверить метаданные, возрастные ограничения, языки и устройства в кабинете каждой платформы.
-- [ ] Пользователь загружает нужный архив и отправляет на модерацию после внешних проверок.
+## Packaged build checks
 
-Облачное сохранение не реализовано; локальное хранилище не является облачным. Локальные даты/монеты не защищены от изменения пользователем. Успешная модерация не гарантируется.
+Run `npm run build:releases`, `npm run verify:releases` and `node scripts/smoke-releases.mjs`.
+
+The pipeline creates Local and CrazyGames Basic/Full builds, verifies deterministic ZIP contents, hashes, root index.html and relative assets, and tests each extracted game archive over HTTP. It verifies actual keyboard destruction/coin collection, English with Russian preferences, no page errors and no production dev harness. SDK loading is intentionally blocked to test unavailable-SDK recovery. Actual production menu/gameplay/garage screenshots are generated under `releases/promo`.
+
+The old Yandex archive must remain unchanged and is excluded from v4 checks. Source ZIP excludes dependencies, release binaries and Git history.
+
+## Before platform submission
+
+- [ ] Validate real CrazyGames SDK initialization, loading/gameplay calls and mute settings in platform preview.
+- [ ] Validate actual ads, errors/cancellation, no inventory, one-time rewards and audio/focus behavior before Full.
+- [ ] Obtain permission for CrazyGames Full monetization before using the Full ZIP.
+- [ ] Test physical Android/iPhone/tablets and weak hardware; measure FPS and heap usage.
+- [ ] Perform an extended manual playtest and tune difficulty using player feedback.
+- [ ] Confirm current file/ZIP/cover limits and English listing details in the platform dashboard.
+- [ ] Upload and submit for moderation when requested by the user.
+
+Progress is local, not cloud-synchronized. Live platform checks remain separate from GitHub delivery.

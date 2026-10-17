@@ -1,50 +1,26 @@
-# Smash City — фактический итог
+# Smash City v4 — delivery record
 
-## Первые две части
-- [x] Существующие Phaser/Vite архитектура, 2D-координаты, управление и изометрическая графика сохранены.
-- [x] Три машины, два района, четыре миссии, гараж, монеты, комбо, конечные цепи, звёзды и рекорды.
-- [x] До изменений третьей части прошли 48 модульных и 8 браузерных проверок, production-сборка; baseline записан коммитом b579ae8.
+## Completed implementation
 
-## Часть 3 — Финализация
-- [x] Аудит предыдущих систем и регрессии.
-- [x] Экскаватор выбирает ближайший подходящий объект и не бьёт через другой дом; короткая стрела следует ограниченной цели.
-- [x] Более выразительные фрагменты, настоящие очки/монеты, суперудар; отдельные настройки тряски и низкого качества.
-- [x] Полные централизованные RU/EN каталоги и приоритет ручной язык → SDK → браузер → English.
-- [x] Независимые адаптеры Local, Yandex, CrazyGames v3; выбранная сборка загружает только нужный SDK.
-- [x] Раздельные CrazyGames Basic/Full; Basic не запрашивает рекламу и не предлагает её.
-- [x] Rewarded ×2 только по подтверждению, сериализация запросов и начисления, однократная сохранённая сумма заезда.
-- [x] Fullscreen только между заездами с интервалом; после rewarded не запрашивается второе midgame сразу.
-- [x] Независимые причины pause/mute: manual, focus, visibility, platform, ad и settings.
-- [x] Сохранения v3, миграции v1/v2 без удаления; шесть достижений и реальные статистические события.
-- [x] Ежедневный календарь, отсутствие штрафа за пропуск, защита от повторного/обратного локального дня.
-- [x] Свободный режим на обеих картах без таймера и постоянных монет; восстановление карты.
-- [x] Готовые папки/ZIP Yandex, CrazyGames Basic и Full, manifest и воспроизводимые команды.
-- [x] Извлечённые ZIP проверены через HTTP: Play, настоящий Space, разрушение и 25 монет при отказе SDK; ошибок JS нет.
-- [x] Настоящие production-скриншоты, обложки 16:9/1:1/2:3, PUBLISHING.md и итоговый RELEASE-CHECKLIST.md.
+- Smooth acceleration/braking and bounded steering; Space preserves the current facing direction.
+- Continuous machine poses with one reusable dynamic canvas per machine, improved bodies and sharp garage portraits.
+- Redesigned home screen with a selected-machine feature and five fleet shortcuts; desktop, portrait and landscape layouts.
+- Road Roller (area shock) and Hydraulic Breaker (three locked-target strikes), alongside the original three machines.
+- Prices: free / 1,200 / 3,000 / 6,000 / 10,000 coins. Existing purchases and progress remain valid.
+- Twelve sequential contracts, two or three blocks each, minimum clearance objectives, varied building types and increased durability in later contracts.
+- English-only Local/CrazyGames behavior, including old Russian preferences. The Yandex v3 archive is frozen.
+- Local plus CrazyGames Basic/Full release pipeline, ZIP integrity checks and extracted-archive HTTP smoke checks.
 
-## Подтверждённые результаты
-- `npm ci`: установка из lockfile прошла.
-- `npm test`: **113/113** прошли, без пропусков.
-- `npx playwright test`: **12/12** прошли, включая прежние регрессии.
-- Local + Yandex + CrazyGames Basic + Full production-сборки прошли.
-- Три ZIP по 4 файла, около 395 КБ каждый; список/CRC/SHA-256/локальные ссылки проверены.
-- Настоящие HTTP-проверки всех трёх ZIP: управление и разрушения работают без SDK, тестовый window.__smash отсутствует.
-- Четыре миссии проходимы непрерывным навигатором, без телепортаций и прямой подмены HP/очков. Десять полных прохождений первой миссии подряд сохраняют корректные рекорды и стабильное число объектов/текстур.
-- Контролируемые SDK-тесты покрывают ready/gameplay, callbacks, отмену, ошибку, недоступность, timeout, поздний/двойной callback, двойной клик, Basic и принудительный mute.
-- Браузерные тесты покрывают ручной язык/reload, достижения, календарь, free mode, rewarded-однократность и сохранение паузы вкладки.
-- После прогрева 40 переключений районов не увеличивали 221 объект/186 текстур; пул частиц 100. Короткие позы стрелы дополнительно ограничены восемью динамическими Canvas-текстурами.
-- Интерфейс и одновременные касания проверены в Chromium при настольных, портретных и горизонтальных мобильных разрешениях.
+## Verification
 
-## Реализовано, но требуется внешняя проверка
-- [ ] Сверить текущую официальную документацию и требования площадок. В этой машине официальные URL отвечали proxy 403. Нужные домены добавлены в черновик среды; сохранение черновика само не применяет их к машине.
-- [ ] Настоящий Yandex SDK в тестовом iframe: Game Ready, Gameplay, pause/resume, live fullscreen/rewarded.
-- [ ] Настоящий CrazyGames SDK v3 в preview: environment, muteAudio, Basic Launch; Full только после допуска монетизации.
-- [ ] Сверить реальные ограничения файлов, ZIP и обязательных изображений по текущим формам загрузки.
+- 172 unit checks pass, including all 60 combinations of contract and machine driven through continuous input without position/health/score mutations.
+- Regression coverage includes steering, ability timing, target occlusion, remixed collapse properties, unique block IDs, one-time settlement and legacy saves.
+- All 14 browser scenarios pass and cover menus, real keyboard/touch input for all five machines, English preference override, desktop/portrait/landscape layout, continuous pose rendering, fixed texture counts, pause/audio/settings, explicit ad fixtures and ten complete consecutive missions.
+- Local, CrazyGames Basic and CrazyGames Full production builds pass. Both game ZIPs pass integrity and extracted HTTP checks (real destruction, 25 coins, no page errors, forced English, dev harness absent).
+- Production and ZIP checks are recorded in generated `releases/build-manifest.json` and `releases/http-smoke-report.json`. Run the commands in README to reproduce them.
 
-## Не завершено / не заявляется готовым
-- [ ] Физические Android/iPhone/планшет и слабый ноутбук; аппаратные 30/60FPS и полный heap-профиль.
-- [ ] Длительный ручной игровой баланс и реальные рекламные inventory/error-сценарии площадок.
-- [ ] Безопасная облачная синхронизация: намеренно не реализована, сохранение остаётся локальным.
-- [ ] Пользовательская загрузка на платформы и модерация — не выполнялись, гарантии успешной модерации нет.
+## External checks still pending
 
-Известные границы: башни падают по +X, декор проезжаемый, локальные монеты/даты могут быть изменены пользователем. Стабильное количество объектов не равно полному доказательству отсутствия утечек. Vite предупреждает о размере Phaser vendor-chunk; сборка успешна.
+Real CrazyGames SDK/iframe and ad inventory, physical Android/iOS devices, hardware FPS/heap profiling, current upload limits and platform moderation. Automated fixtures and SwiftShader emulation do not establish these results. Official documentation previously returned proxy 403. The user requested GitHub delivery; no game-platform submission is part of this release.
+
+Previous v3 implementation and verification history remains in Git; its Yandex archive is intentionally unchanged.

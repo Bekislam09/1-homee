@@ -202,58 +202,15 @@ test('every mission expires at its own deadline, and a lost run stays frozen', (
   }
 });
 
-// These helpers drive exactly the real input API. They never alter health,
-// score, positions, cooldowns, mission rules or rewards during complete runs.
-function navigator(sim) {
-  const seen = [];
-  const tick = input => {
-    sim.update(STEP, input);
-    seen.push(...sim.events);
-  };
-  const moveTo = (x, y) => {
-    for (let frame = 0; frame < 1000 && sim.phase === 'playing'; frame++) {
-      const dx = x - sim.player.x, dy = y - sim.player.y, d = Math.hypot(dx, dy);
-      if (d < 3 && sim.player.speed < 5) return;
-      const magnitude = Math.min(1, d / 30);
-      tick({ x: dx / (d || 1) * magnitude, y: dy / (d || 1) * magnitude });
-    }
-    if (sim.phase === 'playing') assert.fail(`failed to reach ${x},${y}`);
-  };
-  const attack = (x, y) => {
-    const building = sim.buildings.find(b => b.x === x && b.y === y);
-    for (let frame = 0; frame < 1200 && building.hp > 0 && sim.phase === 'playing'; frame++) {
-      const dx = x - sim.player.x, dy = y - sim.player.y, d = Math.hypot(dx, dy);
-      tick({ x: dx / (d || 1), y: dy / (d || 1), ram: sim.player.ramCooldown < 1e-7 });
-    }
-    assert.equal(building.hp, 0, 'all building damage comes from real input');
-  };
-  const waitForChain = () => {
-    for (let frame = 0; frame < 2 * 60 && sim.phase === 'playing'; frame++) tick({});
-  };
-  return { moveTo, attack, waitForChain, seen };
-}
-
 for (const mission of MISSIONS) {
-  test(`mission ${mission.id} is continuously winnable with starter dozer and honest input`, () => {
-    const sim = new Simulation().start({ missionId: mission.id });
-    const nav = navigator(sim);
-    if (mission.id < 3) {
-      for (const x of [180, 400, 620]) nav.attack(x, 180);
-      if (mission.id === 2) {
-        nav.moveTo(840, 180);
-        for (const x of [840, 620, 400, 180]) nav.attack(x, 400);
-        nav.moveTo(70, 400); nav.moveTo(70, 620); nav.attack(180, 620);
-      }
-    } else {
-      nav.attack(180, 180);
-      nav.waitForChain();
-      if (mission.id === 4) nav.attack(180, 400);
-    }
-    assert.equal(sim.phase, 'won');
-    assert.ok(sim.progress >= mission.target);
-    assert.ok(sim.timeLeft > 0);
-    assert.equal(nav.seen.filter(e => e.type === 'win').length, 1);
-    assert.equal(sim.result().won, true);
-    assert.equal(sim.result().missionId, mission.id);
+  test(`mission ${mission.id} is continuously winnable with starter dozer and honest input`, async () => {
+    const {driveDistrict}=await import('./helpers/drive.js');
+    const sim=new Simulation().start({missionId:mission.id});const events=[];
+    driveDistrict(sim,{tick:input=>{sim.update(STEP,input);events.push(...sim.events);}});
+    assert.equal(sim.phase,'won');assert.ok(sim.progress>=mission.target);
+    assert.ok(sim.destroyed>=mission.minDestroyed);assert.equal(sim.sector,mission.sectors-1);
+    assert.ok(sim.elapsed>=45,'a contract requires meaningful clearance, not one opening combo');
+    assert.ok(sim.timeLeft>0);assert.equal(events.filter(e=>e.type==='win').length,1);
+    assert.equal(events.filter(e=>e.type==='sector').length,mission.sectors-1);
   });
 }

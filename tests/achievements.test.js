@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {MISSIONS,VEHICLES} from '../src/smash/content.js';
 import { Progression, ACHIEVEMENTS, DAILY_REWARDS, cleanProgression } from '../src/smash/progression.js';
 import { LocalPlatform, STORAGE_KEY, PREVIOUS_STORAGE_KEY, LEGACY_STORAGE_KEY } from '../src/smash/platform.js';
 
 const win = (id = 1, overrides = {}) => ({ runId: `win-${id}`, missionId: id, won: true,
-  score: 2600, bestCombo: 4, bestChain: 3, destroyed: 8, elapsed: 30, coins: 205, ...overrides });
+  score: 20000, bestCombo: 4, bestChain: 3, destroyed: 42, elapsed: 30, coins: 205, ...overrides });
 const storage = () => {
   const data = new Map();
   return { data, getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
@@ -59,25 +60,29 @@ test('real free play demolitions count achievements without affecting mission or
 });
 
 test('collector and champion unlock only when their real purchases and wins finish', () => {
-  const p = new Progression({ balance: 950 });
+  const p = new Progression({ balance: 20200 });
   p.purchase('excavator');
   assert.deepEqual(p.drainAchievementNotifications(), []);
   p.purchase('wrecker');
+  assert.deepEqual(p.drainAchievementNotifications(),[]);
+  p.purchase('roller');p.purchase('drill');
   assert.deepEqual(p.drainAchievementNotifications(), ['collector']);
   assert.equal(p.purchase('wrecker').ok, false);
   assert.deepEqual(p.drainAchievementNotifications(), []);
-  for (let id = 1; id < 4; id++) p.completeRun(win(id));
+  for (let id = 1; id < MISSIONS.length; id++) p.completeRun(win(id));
   assert.deepEqual(p.drainAchievementNotifications(), []);
-  p.completeRun(win(4));
+  p.completeRun(win(MISSIONS.length));
   assert.deepEqual(p.drainAchievementNotifications(), ['champion']);
   assert.deepEqual(new Progression(p.state).drainAchievementNotifications(), []);
 });
 
 test('old complete progression derives ownership achievements without inventing destruction history', () => {
   const p = new Progression({ version: 2, ownedVehicles: ['dozer', 'excavator', 'wrecker'], completedLevels: [1, 2, 3, 4] });
-  assert.deepEqual(p.state.achievements, ['collector', 'champion']);
+  assert.deepEqual(p.state.achievements, []);
+  assert.deepEqual(p.state.ownedVehicles,['dozer','excavator','wrecker']);
+  assert.deepEqual(p.state.completedLevels,[1,2,3,4]);
   assert.deepEqual(p.state.stats, { destroyed: 0, bestChain: 0 });
-  assert.deepEqual(p.drainAchievementNotifications(), ['collector', 'champion']);
+  assert.deepEqual(p.drainAchievementNotifications(), []);
 });
 
 test('malformed event and history data stay safe and event histories remain bounded', () => {
@@ -101,12 +106,12 @@ test('only confirmed-ad call site can grant the stored ordinary award, never a c
   const p = new Progression({ balance: 205 });
   assert.equal(p.grantRewarded('missing').ok, false);
   p.completeRun(win());
-  assert.equal(p.state.balance, 355, 'ordinary award does not depend on advertising');
-  assert.deepEqual(p.state.rewardedRuns['win-1'], { amount: 355, claimed: false });
-  assert.deepEqual(p.grantRewarded('win-1', 999999), { ok: true, amount: 355, reason: null });
-  assert.equal(p.state.balance, 710);
+  assert.equal(p.state.balance, 455, 'ordinary award does not depend on advertising');
+  assert.deepEqual(p.state.rewardedRuns['win-1'], { amount: 455, claimed: false });
+  assert.deepEqual(p.grantRewarded('win-1', 999999), { ok: true, amount: 455, reason: null });
+  assert.equal(p.state.balance, 910);
   assert.deepEqual(p.grantRewarded('win-1'), { ok: false, amount: 0, reason: 'already-claimed' });
-  assert.equal(p.state.balance, 710);
+  assert.equal(p.state.balance, 910);
 });
 
 test('reward settlement survives reload and repeated completeRun cannot reopen it', () => {
@@ -115,12 +120,12 @@ test('reward settlement survives reload and repeated completeRun cannot reopen i
   p.completeRun(win());
   adapter.save(p.state);
   p = new Progression(new LocalPlatform(memory).load());
-  assert.equal(p.grantRewarded('win-1').amount, 355);
+  assert.equal(p.grantRewarded('win-1').amount, 455);
   adapter.save(p.state);
   p = new Progression(new LocalPlatform(memory).load());
   assert.equal(p.grantRewarded('win-1').ok, false);
   assert.equal(p.completeRun(win()).applied, false);
-  assert.equal(p.state.balance, 710);
+  assert.equal(p.state.balance, 910);
   assert.equal(p.grantRewarded('__proto__').ok, false);
 });
 

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {MISSIONS,VEHICLES} from '../src/smash/content.js';
 import { cleanProgression, Progression } from '../src/smash/progression.js';
 import { LocalPlatform } from '../src/smash/platform.js';
 
 const win = (missionId = 1, overrides = {}) => ({
-  runId: `mission-${missionId}`, missionId, won: true, score: 2600,
-  bestCombo: 4, bestChain: 3, destroyed: 8, elapsed: 30, coins: 205, ...overrides,
+  runId: `mission-${missionId}`, missionId, won: true, score: 20000,
+  bestCombo: 4, bestChain: 3, destroyed: 42, elapsed: 30, coins: 205, ...overrides,
 });
 
 test('new or malformed saves start safely with the free dozer and first district', () => {
@@ -32,7 +33,7 @@ test('sanitization rejects unowned selection and impossible progression while re
   assert.equal(state.selectedVehicle, 'dozer');
   assert.deepEqual(state.completedLevels, [1]);
   assert.deepEqual(state.unlockedDistricts, ['town']);
-  assert.deepEqual(state.records, { 1: { bestScore: 0, bestCombo: 4, bestChain: 0, bestTime: 90, wins: 1, stars: 1 } });
+  assert.deepEqual(state.records, { 1: { bestScore: 0, bestCombo: 4, bestChain: 0, bestTime: MISSIONS[0].duration, wins: 1, stars: 1 } });
   assert.deepEqual(state.settledRuns, ['a']);
 });
 
@@ -41,11 +42,11 @@ test('purchases cannot overspend or charge twice, and owned selection survives r
   assert.deepEqual(p.purchase('excavator'), { ok: false, reason: 'insufficient-funds' });
   assert.equal(p.selectVehicle('excavator'), false);
   assert.equal(p.state.balance, 299);
-  p.state.balance = 950;
+  p.state.balance = 4200;
   assert(p.purchase('excavator').ok);
-  assert.equal(p.state.balance, 650);
+  assert.equal(p.state.balance, 3000);
   assert.equal(p.purchase('excavator').reason, 'already-owned');
-  assert.equal(p.state.balance, 650);
+  assert.equal(p.state.balance, 3000);
   assert(p.purchase('wrecker').ok);
   assert.equal(p.state.balance, 0);
   assert(p.selectVehicle('wrecker'));
@@ -54,7 +55,7 @@ test('purchases cannot overspend or charge twice, and owned selection survives r
   assert.deepEqual(new Progression(p.state).state, p.state);
 });
 
-test('all four missions and the industrial district unlock in sequence only', () => {
+test('all twelve contracts and the industrial district unlock in sequence only', () => {
   const p = new Progression();
   assert.equal(p.isLevelUnlocked(1), true);
   for (const id of [0, 2, 3, 4, 5]) assert.equal(p.isLevelUnlocked(id), false);
@@ -71,13 +72,15 @@ test('all four missions and the industrial district unlock in sequence only', ()
   assert(p.isLevelUnlocked(4));
   p.completeRun(win(4));
   assert.deepEqual(p.state.completedLevels, [1, 2, 3, 4]);
-  assert.equal(p.state.balance, 1250);
+  for(let id=5;id<=MISSIONS.length;id++)assert(p.completeRun(win(id)).applied);
+  assert.equal(p.state.completedLevels.length,12);
+  assert.equal(p.state.balance,MISSIONS.reduce((sum,m)=>sum+m.reward,0));
 });
 
 test('failed, malformed and impossible claimed wins do not award currency or unlock content', () => {
   const p = new Progression({ balance: 25 });
   const invalid = [null, {}, win(1, { won: false }), win(1, { runId: '' }), win(1, { missionId: 99 }),
-    win(1, { score: 999 }), win(1, { elapsed: 91 }), win(1, { elapsed: -1 }),
+    win(1, { score: 999 }), win(1, { elapsed: MISSIONS[0].duration+1 }), win(1, { elapsed: -1 }),
     win(1, { elapsed: NaN }), win(1, { score: Infinity })];
   for (const result of invalid) assert.equal(p.completeRun(result).applied, false);
   assert.equal(p.state.balance, 25);
@@ -97,37 +100,37 @@ test('mission bonus is idempotent across result repetition, saving and browser r
   p.state.balance = 205;
   const first = p.completeRun(win(1));
   assert.equal(first.applied, true);
-  assert.equal(first.bonus, 150);
-  assert.equal(p.state.balance, 355);
+  assert.equal(first.bonus, 250);
+  assert.equal(p.state.balance, 455);
   assert.equal(p.completeRun(win(1)).applied, false);
   platform.save(p.state);
   const reloaded = new Progression(new LocalPlatform(storage).load());
   assert.equal(reloaded.completeRun(win(1)).applied, false);
-  assert.equal(reloaded.state.balance, 355);
+  assert.equal(reloaded.state.balance, 455);
   assert.equal(reloaded.state.records[1].wins, 1);
-  assert(reloaded.purchase('excavator').ok, 'the first ordinary win funds the first new machine');
+  assert.equal(reloaded.purchase('excavator').ok,false,'a small partial award cannot buy a more expensive machine');
 });
 
 test('replays retain best records and stars with smaller bonuses and scaled building coins', () => {
   const p = new Progression();
   assert.equal(p.coinScale(1), 1);
-  const first = p.completeRun(win(1, { score: 1200, bestCombo: 5, bestChain: 1, elapsed: 65 }));
+  const first = p.completeRun(win(1, { score: 4000, bestCombo: 5, bestChain: 1, elapsed: MISSIONS[0].starTimes[0] }));
   assert.equal(first.stars, 2);
   assert.equal(p.coinScale(1), 0.45);
-  const replay = p.completeRun(win(1, { runId: 'replay', score: 1000, bestCombo: 2, bestChain: 3, elapsed: 35 }));
-  assert.equal(replay.bonus, 37);
+  const replay = p.completeRun(win(1, { runId: 'replay', score: 3600, bestCombo: 2, bestChain: 3, elapsed: MISSIONS[0].starTimes[1] }));
+  assert.equal(replay.bonus, 62);
   assert.equal(replay.stars, 3);
-  assert.deepEqual(replay.record, { bestScore: 1200, bestCombo: 5, bestChain: 3, bestTime: 35, wins: 2, stars: 3 });
-  const slow = p.completeRun(win(1, { runId: 'slow', elapsed: 89 }));
+  assert.deepEqual(replay.record, { bestScore: 4000, bestCombo: 5, bestChain: 3, bestTime: MISSIONS[0].starTimes[1], wins: 2, stars: 3 });
+  const slow = p.completeRun(win(1, { runId: 'slow', elapsed: MISSIONS[0].duration-1 }));
   assert.equal(slow.stars, 1);
   assert.equal(slow.record.stars, 3);
-  assert.equal(slow.record.bestTime, 35);
+  assert.equal(slow.record.bestTime, MISSIONS[0].starTimes[1]);
   assert.equal(slow.record.wins, 3);
-  assert.equal(p.state.balance, 224);
+  assert.equal(p.state.balance, 374);
 });
 
 test('stars use inclusive deterministic thresholds for every mission', () => {
-  const thresholds = [[1, 65, 35], [2, 80, 55], [3, 70, 45], [4, 90, 60]];
+  const thresholds=MISSIONS.map(m=>[m.id,...m.starTimes]);
   for (const [id, two, three] of thresholds) {
     const p = new Progression();
     for (let prior = 1; prior < id; prior++) p.completeRun(win(prior));

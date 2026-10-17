@@ -8,7 +8,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const releases = join(root, 'releases');
 const targets = [
   {name: 'local', directory: 'dist', platform: 'local', crazyMode: 'basic', ads: false},
-  {name: 'yandex', directory: 'releases/yandex', platform: 'yandex', crazyMode: 'basic', ads: true},
   {name: 'crazygames-basic', directory: 'releases/crazygames-basic', platform: 'crazygames', crazyMode: 'basic', ads: false},
   {name: 'crazygames-full', directory: 'releases/crazygames-full', platform: 'crazygames', crazyMode: 'full', ads: true},
 ];

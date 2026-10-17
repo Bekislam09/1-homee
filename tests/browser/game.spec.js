@@ -42,7 +42,7 @@ test('menu, real keyboard ram, damage effects, persistence, settings, pause and 
   await page.screenshot({ path: '/tmp/smash-play.png' });
   // Time-expiry UI is exercised by advancing a controlled dev-only timer.
   await page.evaluate(() => window.__smash.sim.timeLeft = .02);
-  await expect(page.locator('#result-title')).toHaveText('Время вышло');
+  await expect(page.locator('#result-title')).toHaveText('Time is up');
   await page.click('#replay');
   expect(await page.evaluate(() => window.__smash.sim.destroyed)).toBe(0);
   expect(await page.evaluate(() => window.__smash.sim.balance)).toBe(25);
@@ -59,34 +59,16 @@ test('menu, real keyboard ram, damage effects, persistence, settings, pause and 
 test('continuous in-browser mission through movement and collisions, results and stable replay resources', async ({ page }) => {
   await ready(page);
   await page.click('#play');
-  const result = await page.evaluate(() => {
-    const g = window.__smash, sim = g.sim, scene = g.scene;
-    // Faster than wall-clock, but only the public movement/ram inputs are used.
-    // Starting positions, durability and rewards are never edited.
-    const frame = input => { sim.update(1 / 60, input); scene.handleEvents(sim.events); };
-    const driveTo = (x, y) => {
-      for (let n = 0; n < 1200 && sim.phase === 'playing'; n++) {
-        const dx = x - sim.player.x, dy = y - sim.player.y, d = Math.hypot(dx, dy);
-        if (d < 6) break;
-        frame({ x: dx / d, y: dy / d });
-      }
-    };
-    const demolish = b => {
-      driveTo(b.x - 74, b.y);
-      for (let n = 0; n < 1000 && b.hp > 0 && sim.phase === 'playing'; n++) frame({ x: 1, y: 0, ram: sim.player.ramCooldown <= 0 });
-    };
-    demolish(sim.buildings[0]);
-    driveTo(290, 180);
-    demolish(sim.buildings[1]);
-    driveTo(510, 180);
-    demolish(sim.buildings[2]);
-    if (sim.phase === 'won') g.finish();
-    return { phase: sim.phase, score: sim.score, destroyed: sim.destroyed, balance: sim.balance, elapsed: 90 - sim.timeLeft };
+  const result = await page.evaluate(async () => {
+    const {driveDistrict}=await import('/tests/helpers/drive.js');
+    const g=window.__smash;g.game.loop.sleep();
+    driveDistrict(g.sim,{tick:input=>{g.sim.update(1/60,input);g.scene.handleEvents(g.sim.events);}});
+    if(g.sim.phase==='won')g.finish();g.game.loop.wake();
+    return {...g.sim.result(),sector:g.sim.sector};
   });
-  expect(result.phase).toBe('won');
-  expect(result.score).toBeGreaterThanOrEqual(1000);
-  expect(result.destroyed).toBe(3);
-  await expect(page.locator('#result-title')).toHaveText('Уровень пройден!');
+  expect(result.won).toBe(true);expect(result.score).toBeGreaterThanOrEqual(3600);
+  expect(result.destroyed).toBeGreaterThanOrEqual(23);expect(result.sector).toBe(1);
+  await expect(page.locator('#result-title')).toHaveText('Level complete!');
   await page.screenshot({ path: '/tmp/smash-win.png' });
   const count = await page.evaluate(() => ({ objects: window.__smash.scene.children.length, textures: window.__smash.game.textures.getTextureKeys().length }));
   for (let n = 0; n < 5; n++) await page.evaluate(() => { window.__smash.start(); window.__smash.menu(); });

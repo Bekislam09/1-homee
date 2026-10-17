@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { iso, createTextures, drawGround, createDecor, ART_ANCHOR, getVehicleTextureOffset,ensureAttackTexture } from './art.js';
+import { iso, createTextures, drawGround, createDecor, ART_ANCHOR, getVehicleTextureOffset,vehiclePose } from './art.js';
 import { t } from './i18n.js';
 
 const FRAGMENT_COLORS = {
@@ -142,6 +142,7 @@ export class CityScene extends Phaser.Scene {
     for (const e of events) {
       const index = this.sim.buildings.findIndex(b => b.id === e.buildingId);
       const v = this.buildings[index];
+      if(e.type==='sector'){this.resetViews();}
       if (e.type === 'ram') {
         this.emit('spark', this.sim.player.x, this.sim.player.y, 8);
       } else if (e.type === 'ability-impact') {
@@ -199,20 +200,20 @@ export class CityScene extends Phaser.Scene {
     const player = this.sim.player;
     const x = menu ? 710 : player.x, y = menu ? 900 : player.y;
     const angle = menu ? -.5 : player.heading;
-    const direction = ((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8;
     const p = iso(x, y);
     const moving = active && player.speed > 8;
-    const vibration = moving ? Math.sin(this.elapsed * 35) * 1.2 : Math.sin(this.elapsed * 2) * .45;
-    const treadFrame = moving && Math.floor(this.elapsed * 14) % 2 ? '-moving' : '';
+    const vibration = moving ? Math.sin(this.elapsed * 22) * .28 : Math.sin(this.elapsed * 2) * .15;
+    const tread=moving?Math.floor(this.elapsed*18)%4*2:0;
     const vehicleId=this.sim.vehicleId||'dozer';
-    let texture=`${vehicleId}-${direction}${treadFrame}`;
-    if(!menu&&vehicleId!=='dozer'&&player.ramTime>0){const fraction=(player.abilityElapsed||0)/(player.abilityDuration||1);const phase=fraction<.2?0:fraction<.5-1e-6?1:fraction<.7?2:fraction<.9?3:4;const reach=player.attackTarget?Math.hypot(player.attackTarget.x-player.x,player.attackTarget.y-player.y):115;texture=ensureAttackTexture(this,vehicleId,direction,phase,reach);}
-    this.dozer.setTexture(texture).setPosition(p.x, p.y + getVehicleTextureOffset(vehicleId) + vibration).setDepth(x + y + 1);
+    const fraction=!menu&&vehicleId!=='dozer'&&player.ramTime>0?player.abilityElapsed/player.abilityDuration:null;
+    const reach=player.attackTarget?Math.hypot(player.attackTarget.x-player.x,player.attackTarget.y-player.y):115;
+    const texture=vehiclePose(this,vehicleId,angle,tread,fraction,reach);
+    this.dozer.setTexture(texture).setPosition(p.x,p.y+getVehicleTextureOffset(vehicleId)+vibration).setDepth(x+y+1);
     const target=player.attackTarget;
     if(active&&target&&vehicleId!=='dozer'){
       const q=iso(target.x,target.y);this.attackArea.setVisible(true).setPosition(q.x,q.y).setDisplaySize(2.449*target.radius,1.414*target.radius).setDepth(target.x+target.y-180);
     }else this.attackArea.setVisible(false);
-    const squash = active && player.ramTime > 0 ? 1.035 : 1;
+    const squash = active && player.ramTime > 0 ? 1+Math.sin(player.abilityElapsed/player.abilityDuration*Math.PI)*.015 : 1;
     this.dozer.setScale(squash);
     this.shadow.setPosition(p.x, p.y + 5).setDepth(x + y - 1);
     const dustRate = this.controls.quality === 'low' ? 7 : 15;

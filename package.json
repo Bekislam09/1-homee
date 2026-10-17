@@ -1,6 +1,6 @@
 {
   "name": "smash-city",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/smash.test.js tests/platform.test.js tests/progression.test.js tests/part2-simulation.test.js tests/achievements.test.js tests/part3-gameplay.test.js tests/lifecycle.test.js tests/sdk.test.js tests/ads.test.js tests/localization.test.js",
+    "test": "node --test tests/smash.test.js tests/platform.test.js tests/progression.test.js tests/part2-simulation.test.js tests/achievements.test.js tests/part3-gameplay.test.js tests/lifecycle.test.js tests/sdk.test.js tests/ads.test.js tests/localization.test.js tests/expansion.test.js",
     "build:releases": "node scripts/build-releases.mjs",
     "verify:releases": "node scripts/verify-releases.mjs"
   },

@@ -48,10 +48,10 @@ test('valid version two migrates, corrupt or unsupported new saves fall back to 
 
 test('partial legacy-style saves preserve every new field and individual settings', () => {
   const p = new LocalPlatform(memoryStorage());
-  const progression = new Progression({ balance: 900 });
+  const progression = new Progression({ balance: 1900 });
   assert(progression.purchase('excavator').ok);
   assert(progression.selectVehicle('excavator'));
-  progression.completeRun({ runId: 'persisted-win', missionId: 1, won: true, score: 1050, elapsed: 35, bestCombo: 3 });
+  progression.completeRun({ runId: 'persisted-win', missionId: 1, won: true, score: 5000, destroyed: 23, elapsed: 135, bestCombo: 3 });
   p.save(progression.state);
   const previous = new LocalPlatform(p.storage).load();
   const fresh = new LocalPlatform(p.storage);

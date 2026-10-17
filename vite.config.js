@@ -13,6 +13,7 @@ export default defineConfig(({mode}) => {
     // Do not copy them over the generated Vite entry point or into platform archives.
     publicDir: false,
     define: {
+      'import.meta.env.VITE_ENGLISH_ONLY': JSON.stringify(platform!=='yandex'),
       'import.meta.env.VITE_PLATFORM': JSON.stringify(platform),
       'import.meta.env.VITE_CRAZY_MODE': JSON.stringify(crazyMode),
     },

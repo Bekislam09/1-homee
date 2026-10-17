@@ -27,25 +27,25 @@ const selectOwned = async (page, vehicle) => {
 test('legacy save, real garage purchases, ownership guards and selected machine survive reload', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await legacySave(page, 1000);
+  await legacySave(page, 4250);
   await ready(page);
-  expect(await inspect(page)).toMatchObject({ balance: 1000, selectedVehicle: 'dozer', ownedVehicles: ['dozer'], settings: { sound: false } });
+  expect(await inspect(page)).toMatchObject({ balance: 4250, selectedVehicle: 'dozer', ownedVehicles: ['dozer'], settings: { sound: false } });
   await page.click('#garage');
   await expect(page.locator('#garage-screen')).toBeVisible();
   await preview(page, 'excavator');
   await page.click('#vehicle-action');
-  expect(await inspect(page)).toMatchObject({ balance: 700, ownedVehicles: ['dozer', 'excavator'] });
+  expect(await inspect(page)).toMatchObject({ balance: 3050, ownedVehicles: ['dozer', 'excavator'] });
   await selectOwned(page, 'excavator');
   const repeated = await page.evaluate(() => {
     const g = window.__smash, before = g.progress.state.balance;
     return { result: g.progress.purchase('excavator'), before, after: g.progress.state.balance };
   });
-  expect(repeated).toEqual({ result: { ok: false, reason: 'already-owned' }, before: 700, after: 700 });
+  expect(repeated).toEqual({ result: { ok: false, reason: 'already-owned' }, before: 3050, after: 3050 });
   await page.screenshot({ path: '/tmp/smash-part2-garage.png' });
   await page.click('#garage-back');
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);
-  expect(await inspect(page)).toMatchObject({ balance: 700, selectedVehicle: 'excavator', settings: { sound: false } });
+  expect(await inspect(page)).toMatchObject({ balance: 3050, selectedVehicle: 'excavator', settings: { sound: false } });
   await page.click('#garage');
   await preview(page, 'wrecker');
   await page.click('#vehicle-action');
@@ -54,7 +54,7 @@ test('legacy save, real garage purchases, ownership guards and selected machine 
   await page.click('#garage-back');
   await page.click('#play');
   expect(await page.evaluate(() => window.__smash.sim.vehicleId)).toBe('wrecker');
-  await expect(page.locator('#ram strong')).toHaveText('УДАР ШАРОМ');
+  await expect(page.locator('#ram strong')).toHaveText('BALL SWING');
   await page.reload();
   await page.waitForFunction(() => window.__smash?.scene?.dozer && window.__smash?.progress);
   expect(await inspect(page)).toMatchObject({ version: 3, balance: 50, selectedVehicle: 'wrecker', ownedVehicles: ['dozer', 'excavator', 'wrecker'] });
@@ -67,9 +67,9 @@ test('corrupt current save falls back safely; funds and locked-level guards prev
   expect(await inspect(page)).toMatchObject({ balance: 200, selectedVehicle: 'dozer', completedLevels: [], unlockedDistricts: ['town'] });
   await page.click('#garage');
   await preview(page, 'excavator');
-  await expect(page.locator('.funds-note')).toContainText('Не хватает 100 монет');
+  await expect(page.locator('.funds-note')).toContainText('You need 1000 more coins');
   await page.click('#vehicle-action');
-  await expect(page.locator('#toast')).toContainText('Недостаточно монет');
+  await expect(page.locator('#toast')).toContainText('Not enough coins');
   expect((await inspect(page)).ownedVehicles).toEqual(['dozer']);
   expect(await page.evaluate(() => window.__smash.progress.purchase('excavator'))).toEqual({ ok: false, reason: 'insufficient-funds' });
   expect((await inspect(page)).balance).toBe(200);
@@ -107,7 +107,7 @@ test('real keyboard abilities: distinct machine textures, delayed contact frames
       const g = window.__smash, frames = [];
       for (let n = 0; n < 72; n++) {
         g.scene.update(0, 1000 / 60 + .0001);
-        frames.push({ elapsed: g.sim.player.abilityElapsed, hp: g.sim.buildings[0].hp, texture: g.scene.dozer.texture.key, cooldown: g.sim.player.ramCooldown,
+        frames.push({ elapsed: g.sim.player.abilityElapsed, hp: g.sim.buildings[0].hp, texture: g.scene.dozer.texture.key, pose:g.scene.dozer.texture.smashPose, cooldown: g.sim.player.ramCooldown,
           areaWidth: g.scene.attackArea.geom.width * g.scene.attackArea.scaleX,
           areaHeight: g.scene.attackArea.geom.height * g.scene.attackArea.scaleY });
       }
@@ -115,7 +115,7 @@ test('real keyboard abilities: distinct machine textures, delayed contact frames
     });
     const hit = frames.find(frame => frame.hp < 1);
     expect(hit, `${vehicleId} must damage the actual initial shed`).toBeTruthy();
-    expect(frames.some(frame => frame.texture.startsWith(`${vehicleId}-`))).toBe(true);
+    expect(frames.some(frame => frame.texture===`live-${vehicleId}`)).toBe(true);
     expect(frames[0].cooldown).toBeGreaterThan(0);
     if (vehicleId !== 'dozer') {
       const impactAt = vehicleId === 'excavator' ? .4 : .55;
@@ -123,11 +123,10 @@ test('real keyboard abilities: distinct machine textures, delayed contact frames
       expect(frames[0].areaWidth).toBeCloseTo(2.449 * radius, 2);
       expect(frames[0].areaHeight).toBeCloseTo(1.414 * radius, 2);
       expect(frames.filter(frame => frame.elapsed < impactAt - .001).every(frame => frame.hp === 1)).toBe(true);
-      expect(frames.filter(frame => frame.elapsed < impactAt - .001).every(frame => !frame.texture.endsWith('-attack-2'))).toBe(true);
-      expect(hit.elapsed).toBeCloseTo(impactAt, 2);
-      expect(hit.texture).toMatch(new RegExp(`^${vehicleId}-\\d-attack-2$`));
-      expect(frames.some(frame => /attack-[01]$/.test(frame.texture))).toBe(true);
-      expect(frames.some(frame => /attack-[34]$/.test(frame.texture))).toBe(true);
+      expect(hit.elapsed).toBeCloseTo(impactAt,2);
+      expect(hit.texture).toBe(`live-${vehicleId}`);
+      expect(new Set(frames.filter(f=>f.elapsed<impactAt).map(f=>f.pose)).size).toBeGreaterThan(4);
+      expect(new Set(frames.filter(f=>f.elapsed>impactAt).map(f=>f.pose)).size).toBeGreaterThan(4);
     }
     await page.evaluate(() => window.__smash.game.loop.wake());
   }
@@ -157,8 +156,8 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
     const g = window.__smash;
     // Fixture only for reaching locked content. This does not claim to complete
     // missions 1–2; their uninterrupted gameplay is covered by simulation tests.
-    g.progress.completeRun({ runId: 'browser-fixture-1', missionId: 1, won: true, score: 1000, destroyed: 3, bestCombo: 3, bestChain: 1, elapsed: 30 });
-    g.progress.completeRun({ runId: 'browser-fixture-2', missionId: 2, won: true, score: 3000, destroyed: 8, bestCombo: 3, bestChain: 1, elapsed: 50 });
+    g.progress.completeRun({ runId: 'browser-fixture-1', missionId: 1, won: true, score: 3600, destroyed: 23, bestCombo: 3, bestChain: 1, elapsed: 30 });
+    g.progress.completeRun({ runId: 'browser-fixture-2', missionId: 2, won: true, score: 6000, destroyed: 26, bestCombo: 3, bestChain: 1, elapsed: 50 });
     localStorage.setItem('smash-city-v3', JSON.stringify(g.progress.state));
   });
   await page.reload();
@@ -172,19 +171,10 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
   expect(await page.evaluate(() => window.__smash.scene.ground.texture.key)).toBe('smash-ground-industrial');
   expect(await page.evaluate(() => window.__smash.sim.buildings.slice(0, 3).map(b => b.type))).toEqual(['tower', 'warehouse', 'containers']);
   await page.screenshot({ path: '/tmp/smash-part2-industrial.png' });
-  const run = await page.evaluate(() => {
-    const g = window.__smash, chainEvents = [];
-    g.game.loop.sleep();
-    g.scene.accumulator = 0;
-    // Accelerated controlled clock with public movement/ability input only.
-    // The initial tower, all neighbouring HP, and rewards are unmodified.
-    for (let n = 0; n < 1200 && g.sim.phase === 'playing'; n++) {
-      Object.assign(g.controls.input, { x: 1, y: 0, ram: false });
-      g.controls.ramQueued = g.sim.player.ramCooldown <= 0;
-      g.scene.update(0, 1000 / 60 + .0001);
-      chainEvents.push(...g.sim.events.filter(e => e.type === 'chain').map(e => e.count));
-    }
-    return { phase: g.sim.phase, chain: g.sim.bestChain, destroyed: g.sim.destroyed, chainEvents, balance: g.sim.balance, particles: g.scene.particles.filter(p => p.life > 0).length, pool: g.scene.particles.length };
+  const run = await page.evaluate(async () => {
+    const {driveDistrict}=await import('/tests/helpers/drive.js');const g=window.__smash,chainEvents=[];g.game.loop.sleep();
+    driveDistrict(g.sim,{tick:input=>{g.sim.update(1/60,input);g.scene.handleEvents(g.sim.events);chainEvents.push(...g.sim.events.filter(e=>e.type==='chain').map(e=>e.count));}});
+    g.finish();return {phase:g.sim.phase,chain:g.sim.bestChain,destroyed:g.sim.destroyed,chainEvents,balance:g.sim.balance,particles:g.scene.particles.filter(p=>p.life>0).length,pool:g.scene.particles.length};
   });
   expect(run.phase).toBe('won');
   expect(run.chain).toBeGreaterThanOrEqual(3);
@@ -193,11 +183,11 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
   expect(run.chainEvents).toContain(3);
   expect(run.particles).toBeLessThanOrEqual(run.pool);
   await page.evaluate(() => window.__smash.game.loop.wake());
-  await expect(page.locator('#result-title')).toHaveText('Уровень пройден!');
+  await expect(page.locator('#result-title')).toHaveText('Level complete!');
   await expect(page.locator('.result-stars .earned')).toHaveCount(3);
   const saved = await inspect(page);
   expect(saved.completedLevels).toEqual([1, 2, 3]);
-  expect(saved.records[3]).toMatchObject({ wins: 1, stars: 3, bestChain: 3 });
+  expect(saved.records[3]).toMatchObject({ wins: 1, stars: 3, bestChain: run.chain });
   await page.evaluate(() => { window.__smash.finish(); window.__smash.finish(); });
   expect((await inspect(page)).balance).toBe(saved.balance);
   await page.screenshot({ path: '/tmp/smash-part2-chain-result.png' });
@@ -233,21 +223,21 @@ test('industrial map, real collapse chain, records, stars, settlement guard and 
   expect(resources.pool).toBeLessThanOrEqual(100);
 });
 
-test('mobile garage and simultaneous real touch controls work for all three purchased machines', async ({ browser }) => {
+test('mobile garage and simultaneous real touch controls work for all five purchased machines', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await legacySave(page, 1000);
+  await legacySave(page, 20500);
   await ready(page);
   await page.click('#garage');
-  for (const vehicle of ['excavator', 'wrecker']) {
+  for (const vehicle of ['excavator', 'wrecker','roller','drill']) {
     await preview(page, vehicle);
     await page.click('#vehicle-action');
   }
   await page.screenshot({ path: '/tmp/smash-part2-mobile-garage.png' });
   const client = await context.newCDPSession(page);
-  for (const vehicle of ['dozer', 'excavator', 'wrecker']) {
+  for (const vehicle of ['dozer', 'excavator', 'wrecker','roller','drill']) {
     await selectOwned(page, vehicle);
     await page.click('#garage-back');
     await page.click('#play');

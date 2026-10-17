@@ -361,6 +361,9 @@ function vehicle(ctx, width, height, angle, treadPhase = 0) {
   addFace([[46,-32,24],[46,32,24],[50,32,25],[50,-32,25]],'#ffe58c',[0,0,1]);
   cube(42,-33,3,4,66,4,['#a7aaa0','#808e82','#d5d4bb']);
   for(const y of [-14,10]) cube(21,y,24,3,4,5,['#fff6ca','#e7d593','#fffde4']);
+  cube(-1,-4,60,8,8,5,['#ff8d26','#c85b20','#ffe17a']);
+  for(const y of [-26,-14,-2,10,22])addFace([[50.2,y,17],[50.2,y+5,17],[48.2,y+9,25],[48.2,y+4,25]],'#344a50',[1,0,0]);
+  for(const y of [-20,18])cube(-10,y,24,14,3,4,['#7b979f','#3e606c','#c8e1dc']);
   // Painted tow marking at the rear.
   cube(-28,-8,23,1,16,3,['#a87c2c','#966e26','#f1bb4a']);
   faces.sort((a,b)=>a.depth-b.depth);
@@ -414,10 +417,10 @@ function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null,toolRea
     }
     for(let x=-29+treadPhase;x<30;x+=8)line(ctx,[at(x,y,17),at(Math.min(x+3,31),y,16)],'#a8ae97',1.4);
   };
-  for(const y of [-28,18])cube(-32,y,3,64,10,15,['#465b52','#304b43','#738174'],{left:wheelDetail(y-.1),right:wheelDetail(y+10.1)});
+  if(id!=='roller')for(const y of [-28,18])cube(-32,y,3,64,10,15,['#465b52','#304b43','#738174'],{left:wheelDetail(y-.1),right:wheelDetail(y+10.1)});
   cube(-26,-21,17,51,42,10,['#e5a13e','#b87f31','#ffcd73']);
   cube(-20,-19,27,42,38,6,['#e6ae50','#bd8735','#ffdb8d']);
-  const base=id==='wrecker'?['#63998f','#487a73','#9fc3a7']:['#ec9a40','#c77930','#ffc36e'];
+  const base=id==='wrecker'?['#267dba','#175278','#63bbdd']:id==='drill'?['#e6eceb','#99aebc','#ffffff']:id==='roller'?['#e45c37','#ae3328','#ff9a55']:['#f6a126','#c5701c','#ffe086'];
   cube(-30,-19,30,22,38,17,base,{top:()=>{
     for(let x=-27;x<-12;x+=4)line(ctx,[at(x,-12,47.3),at(x,12,47.3)],id==='wrecker'?'#527e72':'#bc7933',1.2);
   }});
@@ -427,16 +430,18 @@ function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null,toolRea
   addFace([[-7,-17.2,55],[12,-17.2,55],[12,-17.2,60],[-7,-17.2,60]],'#c9ebe6',[0,-1,0]);
   addFace([[14.2,-15,54],[14.2,2,54],[14.2,2,60],[14.2,-15,60]],'#c9ebe6',[1,0,0]);
   for(const x of [-10,13])for(const y of [-19,3])cube(x,y,35,3,3,29,['#ef9f3f','#bb762e','#ffcb76']);
-  cube(-13,-21,64,32,28,5,['#e9983b','#be7d30','#ffd27c']);
+  cube(-13,-21,64,32,28,5,base);
+  cube(-2,-10,69,7,7,4,['#ffb53b','#df731e','#ffdd79']);
+  cube(-31,-20,31,3,40,5,['#263b48','#152c38','#617b87']);
+  for(const y of [-13,-3,7])addFace([[-31.3,y,32],[-31.3,y+5,32],[-31.3,y+9,36],[-31.3,y+4,36]],'#ffce4a',[-1,0,0]);
+  for(const y of [-21,19])cube(-10,y,24,13,3,3,['#b7c8cb','#6d8995','#ecf6eb']);
   cube(-24,11,47,4,4,15,['#586a5d','#3e554c','#96a18c']);
   cube(-25,10,61,6,6,2,['#526658','#3e554b','#a1ac92']);
   for(const y of [-18,14])cube(23,y,26,2,4,5,['#fff1be','#d9cc91','#ffffd9']);
   // Rear chevrons are geometry on the counterweight, not a screen-space sticker.
   for(const y of [-13,-3,7])addFace([[-30.3,y,32],[-30.3,y+5,32],[-30.3,y+10,43],[-30.3,y+5,43]],'#eed39a',[-1,0,0]);
   if(id==='excavator') {
-    const poses=attackFrame===null?[82,36,38,83]:[
-      [56,86,30,105],[88,65,48,99],[115,12,59,73],[94,25,43,79],[82,36,38,83],
-    ][attackFrame];
+    const poses=interpolatePose([82,36,38,83],[[56,86,30,105],[88,65,48,99],[115,12,59,73],[94,25,43,79],[82,36,38,83]],attackFrame);
     const [poseX,tz,poseElbow,ez]=poses;
     const ratio=toolReach/115;const tx=poseX*ratio,ex=poseElbow*Math.max(.5,ratio);
     const shoulder=[10,11,40],elbow=[ex,11,ez],wrist=[tx-20,11,tz+13];
@@ -452,10 +457,42 @@ function machine(ctx,width,height,angle,id,treadPhase=0,attackFrame=null,toolRea
     addFace([[back-2,0,tz-3],[back-2,23,tz-3],[tx-4,23,tz-8],[tx-4,0,tz-8]],'#705f40');
     for(const y of [1,7,13,19])cube(tx-3,y,tz-6,7,3,3,['#b2b5a0','#7d8c7c','#ebe5c5']);
     addDraw(tx,11,0,()=>{if(attackFrame===2){const q=at(tx,11,0);ellipse(ctx,q.x,q.y,18,7,'rgba(60,71,54,.12)');}});
+  } else if(id==='drill') {
+    const active=attackFrame!==null;
+    const extension=active?Math.sin(Math.max(0,attackFrame+1)/5*Math.PI):0;
+    const tx=Math.max(40,toolReach)*(active?.78+.22*extension:.7);
+    const pulse=active?Math.sin((attackFrame+1)*Math.PI*3.4)*5:0;
+    beam([8,10,40],[40,10,96],13,14,['#58b8d4','#27718e','#b8f0ec']);
+    beam([40,10,96],[tx-9,10,48],11,12,['#e5edec','#8baab7','#ffffff']);
+    beam([8,20,42],[36,20,88],3,4,['#b5c9ce','#547485','#f0fffc']);
+    beam([40,19,88],[tx-14,19,52],3,3,['#c3d6d9','#557380','#ffffff']);
+    cube(tx-12,-3,26+pulse,22,26,28,['#257b9d','#164e69','#63b5cd']);
+    cube(tx-5,5,8+pulse,9,10,25,['#c2d2d8','#5e7f91','#effbfa']);
+    addFace([[tx-5,5,8+pulse],[tx+4,5,8+pulse],[tx,10,0]],'#ecf4ef');
+    addFace([[tx+4,5,8+pulse],[tx+4,15,8+pulse],[tx,10,0]],'#7796a5');
+    for(const z of [32,40,48])cube(tx-12.2,-3,z+pulse,23,26,2,['#f7c750','#b89132','#ffdd76']);
+    for(const [x,z] of [[8,40],[40,96],[tx-9,48]])pivot(x,18,z,5);
+  } else if(id==='roller') {
+    const drum=(cx,cy,cz,r,length,steel)=>{
+      const palette=steel?['#728d9b','#aac3c8','#e1eef0','#829eac']:['#1d3543','#304c5c','#4b6571','#263e4c'];
+      const offset=treadPhase/8*Math.PI/8;
+      for(let n=0;n<20;n++){
+        const a=n*Math.PI/10+offset,b=(n+1)*Math.PI/10+offset;
+        addFace([[cx+Math.cos(a)*r,cy-length/2,cz+Math.sin(a)*r],[cx+Math.cos(b)*r,cy-length/2,cz+Math.sin(b)*r],[cx+Math.cos(b)*r,cy+length/2,cz+Math.sin(b)*r],[cx+Math.cos(a)*r,cy+length/2,cz+Math.sin(a)*r]],palette[n%4],[Math.cos((a+b)/2),0,Math.sin((a+b)/2)]);
+      }
+      for(const side of [-1,1]){
+        const verts=Array.from({length:20},(_,n)=>[cx+Math.cos(n*Math.PI/10)*r,cy+side*length/2,cz+Math.sin(n*Math.PI/10)*r]);
+        addFace(verts,steel?'#537889':'#1b3443',[0,side,0],()=>{const q=at(cx,cy+side*(length/2+.2),cz);ellipse(ctx,q.x,q.y,r*.3,r*.38,'#f0b444');ellipse(ctx,q.x,q.y,r*.12,r*.15,'#e4f2e7');});
+      }
+    };
+    for(const y of [-25,25])drum(-21,y,16,17,12,false);
+    const lift=attackFrame===null?0:Math.max(0,Math.sin((attackFrame+1)/3*Math.PI))*8;
+    beam([14,-24,24],[43,-24,18+lift],8,6,base);beam([14,24,24],[43,24,18+lift],8,6,base);
+    drum(42,0,19+lift,23,62,true);
+    cube(22,-34,40+lift,37,68,4,base);
+    for(const y of [-30,-14,2,18])cube(59,y,40+lift,1,8,4,['#213d4d','#213d4d','#ffdd5d']);
   } else {
-    const poses=attackFrame===null?[82,36,0]:[
-      [-8,93,-23],[72,79,-10],[125,24,0],[98,31,0],[82,36,0],
-    ][attackFrame];
+    const poses=interpolatePose([82,36,0],[[-8,93,-23],[72,79,-10],[125,24,0],[98,31,0],[82,36,0]],attackFrame);
     const [bx,bz,by]=poses;
     const tip=[54,8,111];
     beam([7,8,37],tip,13,15,['#dea64e','#aa7938','#ffd48a']);
@@ -690,7 +727,10 @@ function garageRoom(ctx) {
 }
 
 function garageVehiclePortrait(scene,id) {
-  const source=scene.textures.get(`${id}-0`).getSourceImage();
+  const base=scene.textures.get(`${id}-0`).getSourceImage();
+  const source=document.createElement('canvas');source.width=base.width*3;source.height=base.height*3;
+  const high=source.getContext('2d');high.scale(3,3);
+  if(id==='dozer')vehicle(high,base.width,base.height,0);else machine(high,base.width,base.height,0,id);
   const pixels=source.getContext('2d').getImageData(0,0,source.width,source.height).data;
   let left=source.width,top=source.height,right=0,bottom=0;
   for(let y=0;y<source.height;y++)for(let x=0;x<source.width;x++) {
@@ -714,15 +754,8 @@ export function createTextures(scene) {
   for(const type of ['warehouse','tower','containers'])for(let stage=0;stage<3;stage++) {
     texture(scene,`${type}-${stage}`,256,292,(ctx,w,h)=>drawIndustrialBuilding(ctx,w,h,type,stage));
   }
-  for(let i=0;i<8;i++) {
-    texture(scene,`dozer-${i}`,180,160,(ctx,w,h)=>vehicle(ctx,w,h,i*Math.PI/4));
-    texture(scene,`dozer-${i}-moving`,180,160,(ctx,w,h)=>vehicle(ctx,w,h,i*Math.PI/4,4));
-    for(const id of ['excavator','wrecker']) {
-      texture(scene,`${id}-${i}`,360,320,(ctx,w,h)=>machine(ctx,w,h,i*Math.PI/4,id));
-      texture(scene,`${id}-${i}-moving`,360,320,(ctx,w,h)=>machine(ctx,w,h,i*Math.PI/4,id,4));
-      for(let frame=0;frame<5;frame++)texture(scene,`${id}-${i}-attack-${frame}`,360,320,(ctx,w,h)=>machine(ctx,w,h,i*Math.PI/4,id,0,frame));
-    }
-  }
+  texture(scene,'dozer-0',180,160,(ctx,w,h)=>vehicle(ctx,w,h,0));
+  for(const id of ['excavator','wrecker','roller','drill'])texture(scene,`${id}-0`,360,320,(ctx,w,h)=>machine(ctx,w,h,0,id));
   texture(scene,'dust',48,48,(ctx)=>{
     const g=ctx.createRadialGradient(24,24,2,24,24,22);g.addColorStop(0,'rgba(248,231,190,.8)');g.addColorStop(.45,'rgba(234,218,181,.45)');g.addColorStop(1,'rgba(234,218,181,0)');
     ctx.fillStyle=g;ctx.fillRect(0,0,48,48);
@@ -753,7 +786,7 @@ export function createTextures(scene) {
   texture(scene,'industrial-fence',160,120,industrialFence);
   texture(scene,'industrial-crane',440,360,industrialCrane);
   texture(scene,'garage-room',1200,800,garageRoom);
-  for(const id of ['dozer','excavator','wrecker'])garageVehiclePortrait(scene,id);
+  for(const id of ['dozer','excavator','wrecker','roller','drill'])garageVehiclePortrait(scene,id);
 }
 
 function worldPolygon(ctx,coordinates,fill,stroke=null,width=1) {
@@ -959,14 +992,26 @@ export function createDecor(scene,district='town') {
   return result;
 }
 
-// One dynamic canvas per direction bounds short-reach poses to eight textures.
-export function ensureAttackTexture(scene,id,direction,phase,reach=115){
-  const normal=`${id}-${direction}-attack-${phase}`;
-  if(id!=='excavator'||reach>=113)return normal;
-  const bounded=Math.max(30,Math.min(115,Math.round(reach/6)*6));
-  const key=`excavator-${direction}-short`;
-  let canvas=scene.textures.exists(key)?scene.textures.get(key):scene.textures.createCanvas(key,360,320);
-  const stamp=`${phase}/${bounded}`;
-  if(canvas.smashPose!==stamp){const ctx=canvas.getContext();ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,360,320);machine(ctx,360,320,direction*Math.PI/4,id,0,phase,bounded);ctx.restore();canvas.refresh();canvas.smashPose=stamp;}
+// Interpolate articulated tools and render into one reusable canvas per vehicle.
+// Continuous angles avoid eight-direction snapping without hundreds of new atlases.
+function interpolatePose(rest,frames,phase){
+  if(phase===null)return rest;
+  const a=phase<0?rest:frames[Math.min(4,Math.floor(phase))];
+  const b=frames[Math.min(4,Math.floor(phase)+1)];
+  const t=phase-Math.floor(phase);
+  return a.map((v,i)=>v+(b[i]-v)*t);
+}
+export function vehiclePose(scene,id,angle,tread=0,progress=null,reach=115){
+  const key=`live-${id}`,w=id==='dozer'?180:360,h=id==='dozer'?160:320;
+  const canvas=scene.textures.exists(key)?scene.textures.get(key):scene.textures.createCanvas(key,w,h);
+  const a=Math.round(angle*180/Math.PI)*Math.PI/180;
+  const phase=progress===null?null:progress<.2?-1+progress/.2:progress<.5?(progress-.2)/.3*2:2+(progress-.5)/.5*2;
+  const frame=phase===null?null:Math.min(4,Math.round(phase*24)/24);
+  const stamp=`${a}/${tread}/${frame}/${Math.round(reach)}`;
+  if(canvas.smashPose!==stamp){
+    const ctx=canvas.getContext();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,w,h);ctx.save();
+    if(id==='dozer')vehicle(ctx,w,h,a,tread);else machine(ctx,w,h,a,id,tread,frame,reach);
+    ctx.restore();canvas.refresh();canvas.smashPose=stamp;
+  }
   return key;
 }

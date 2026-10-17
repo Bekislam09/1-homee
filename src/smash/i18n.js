@@ -1,9 +1,17 @@
 import ru from './locales/ru.js';
 import en from './locales/en.js';
+import {MISSIONS,VEHICLES} from './content.js';
+export const ENGLISH_ONLY=import.meta.env?.VITE_ENGLISH_ONLY===true;
+for(const mission of MISSIONS){
+  en[`mission.${mission.id}.name`]=mission.title;
+  const goal=mission.objective==='score'?`Score ${mission.target.toLocaleString('en')} points and clear ${mission.minDestroyed} buildings`:mission.objective==='chain'?`Trigger a ${mission.target}-building chain and clear ${mission.minDestroyed} buildings`:`Demolish ${mission.target} buildings`;
+  en[`mission.${mission.id}.description`]=`${goal} across ${mission.sectors} blocks. ${mission.strength? 'Reinforced structures. ':''}${mission.duration} seconds on the clock.`;
+}
+for(const id of ['roller','drill'])for(const field of ['name','subtitle','description','abilityName'])en[`vehicle.${id}.${field}`]=VEHICLES[id][field];
 
 // Stable keys keep display text independent from simulation/content identifiers.
-export const messages = {ru: {...ru}, en: {...en}};
-let locale = 'ru';
+export const messages = {ru: {...en,...ru}, en: {...en}};
+let locale = ENGLISH_ONLY?'en':'ru';
 const listeners = new Set();
 
 function supportedLocale(value) {
@@ -13,6 +21,7 @@ function supportedLocale(value) {
 }
 
 export function resolveLocale(manual, platformLanguage, browserLanguage) {
+  if(ENGLISH_ONLY)return 'en';
   const manualLocale = supportedLocale(manual);
   if (manualLocale) return manualLocale;
   // A platform that specifies an unsupported language intentionally falls back
@@ -23,7 +32,7 @@ export function resolveLocale(manual, platformLanguage, browserLanguage) {
 
 export function getLocale() { return locale; }
 export function setLocale(value) {
-  const next = supportedLocale(value) || 'en';
+  const next = ENGLISH_ONLY?'en':supportedLocale(value) || 'en';
   if (next === locale) return locale;
   locale = next;
   for (const listener of listeners) listener(locale);

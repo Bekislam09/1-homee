@@ -1,20 +1,15 @@
-# SMASH CITY — Разрушитель города
+# Smash City — City Demolition
 
-Продолжение одной Phaser 3/Vite игры: три строительные машины, два изометрических района, четыре задания и цепные разрушения. Финальная локальная версия добавляет RU/EN, достижения, дневную награду, свободный режим, адаптеры платформ и релизные ZIP.
+Version 4: an English-only CrazyGames edition built with Phaser 3 and Vite. Five construction machines, twelve contracts across two isometric districts, multi-block demolition, combos, finite chain collapses and a persistent garage.
 
-**Статус:** локальная игра и автоматические проверки готовы. Живые SDK, реклама и актуальные требования площадок ещё нуждаются в platform-preview: официальные страницы в среде были недоступны (proxy 403). Это не гарантия прохождения модерации. Публикация не выполнялась.
+## Run and verify
 
-## Запуск
-
-Node.js 22.12+ (проверено 24.19), npm, современный браузер с Canvas/WebGL. Для сборки и проверки релизных ZIP нужен Python 3 (стандартная библиотека, без pip-зависимостей).
+Node.js 22.12+ and npm. Release packaging uses Python 3's standard library. Browser checks use Chromium at `/usr/bin/chromium` (override with `CHROMIUM_PATH`).
 
 ```sh
-cd /workspace/1-homee
-npm ci --cache /tmp/loot-npm-cache
+npm ci --cache /tmp/loot-npm-cache --no-audit --no-fund
 npm run dev -- --port 5173
 ```
-
-Проверки и релизы:
 
 ```sh
 npm test
@@ -24,52 +19,45 @@ npm run verify:releases
 node scripts/smoke-releases.mjs
 ```
 
-Локальная production-версия: `npm run build`, `npm run preview -- --port 4173`. Playwright использует `/usr/bin/chromium`; путь меняется через `CHROMIUM_PATH`. Тестовый доступ `/?test` существует только в dev-сборке.
+`npm run build` creates `dist`; `npm run preview` serves it. The `/?test` harness is available only in development.
 
-## Геймплей
+## What's new
 
-WASD/стрелки — движение по экрану, Space — способность, Esc — пауза. На сенсорном экране джойстик и отдельная большая кнопка, одновременные касания поддержаны. Потеря фокуса останавливает игру; продолжение вручную. Настройки языка, звука, эффектов, тряски и качества сохраняются.
+- Smooth acceleration, braking and bounded steering; vehicle silhouettes rotate in one-degree increments instead of snapping between eight directions. Articulated tools interpolate their windup, contact and recovery poses.
+- A redesigned navy/orange home screen, featured machine, fleet shortcuts, sharper garage portraits and more detailed machine bodies.
+- Twelve sequential contracts: two blocks in contracts 1–8 and three in contracts 9–12. Each block contains fourteen buildings; later blocks remix structure types and later contracts increase durability. Objectives require both their score/chain target and a minimum clearance, so one quick combo cannot finish a contract.
+- Two new playable machines with distinct abilities, higher garage prices and an English-only interface regardless of browser or legacy language preference.
 
-| Машина | Особенность | Цена |
-| --- | --- | --- |
-| Бульдозер | Быстрый рывок ковшом и сквозной снос слабых объектов | бесплатно |
-| Экскаватор | Сильный точечный удар, ближайшая цель, контакт через 0,40 с |300 |
-| Разрушительный шар | Урон группе в области, контакт через 0,55 с |650 |
+| Machine | Ability | Coins |
+| --- | --- | ---: |
+| Bulldozer | Forward ram | Free |
+| Excavator | Focused bucket strike | 1,200 |
+| Wrecking Ball | Wide area impact | 3,000 |
+| Road Roller | Ground shock around the drum | 6,000 |
+| Hydraulic Breaker | Three timed strikes against the nearest locked target | 10,000 |
 
-| Задание | Район | Цель / таймер |
-| --- | --- | --- |
-| Начало разрушений | Солнечный квартал |1000 очков /90 с |
-| Срочный снос | Солнечный квартал |8 зданий /100 с |
-| Большое обрушение | Индустриальный | цепь 3 /100 с |
-| Мастер разрушений | Индустриальный |2400 очков /120 с |
+All twelve contracts are tested through continuous control input with each of the five machines. The starter bulldozer can complete the entire campaign. The timer ranges from 270 to 510 seconds; completion time depends on driving and machine choice. There is no forced minimum waiting period. Buildings award coins; combos multiply score only. Repeat completions pay 45% building coins and 25% mission bonus.
 
-Миссии открываются последовательно; промышленный район — после второй. Все проходимы стартовой машиной. Комбо до ×3 за разрушения с интервалом до 7 с умножает очки, не монеты. Первое прохождение даёт полный бонус; повтор — 45% монет за здания и 25% бонуса. Цепь ограничена 6 объектами.
+WASD/arrows move, Space activates the ability and Esc pauses. Touch uses a joystick plus a separate ability button with simultaneous touches. Focus loss pauses the run. Free demolition has no timer or permanent coin earnings; restore the map to keep playing. Six achievements, daily rewards, sound, effects, shake and quality settings remain available.
 
-Свободный режим использует купленную технику и открытые районы, не имеет таймера/обязательной цели и не выдаёт постоянных монет. Кнопка восстановления возвращает здания. Шесть достижений основаны на реальных событиях. Дневная награда доступна раз за календарный день; пропуск не сбрасывает цикл. Локальный календарь не является серверной защитой от накрутки.
+## Saves and platform builds
 
-## Сохранение и платформы
+The existing `smash-city-v3` save key remains compatible with v1/v2. Existing coins, owned machines, records and earned achievements are retained. Raising prices does not remove previously purchased machines. Progress is stored locally, with an in-memory fallback if storage fails; cloud saves are not implemented.
 
-`smash-city-v3` безопасно читает/мигрирует v2/v1, сохраняя старые ключи, монеты, технику, рекорды и настройки. Новые поля — достижения, реальные общие разрушения, ручной язык, ежедневный календарь и однократные rewarded-результаты. При отказе localStorage игра продолжает работать в памяти; облачное сохранение не реализовано.
+The selected build determines its SDK integration. CrazyGames uses the official SDK v3 URL. Basic has no advertising offers. Full enables ad requests only when the adapter is available, grants rewarded coins only after confirmation, and preserves independent pause/mute reasons. Local builds load no SDK. Russian catalogs and the dormant Yandex adapter remain for compatibility; **Yandex development and its old v3 ZIP are postponed and excluded from the v4 release pipeline**.
 
-Выбор SDK задан сборкой, не query-параметром или доменом. Yandex использует `/sdk.js`; CrazyGames — официальный v3 URL. Basic/Local не предлагают рекламу. Full/Yandex показывают ×2 только при доступном адаптере, дают бонус после подтверждения и один раз за runId. Запрос и начисление сериализованы; реклама не отменяет ручную, платформенную или вкладочную паузу. Время ожидания ограничено, поздние callbacks игнорируются.
+## Downloads
 
-## Релизные файлы
+- [CrazyGames Basic ZIP](https://github.com/Bekislam09/1-homee/raw/refs/heads/main/releases/smash-city-crazygames-basic.zip) — first submission, no monetization.
+- [CrazyGames Full ZIP](https://github.com/Bekislam09/1-homee/raw/refs/heads/main/releases/smash-city-crazygames-full.zip) — only after platform monetization approval and live ad checks.
+- [Source ZIP](https://github.com/Bekislam09/1-homee/raw/refs/heads/main/releases/smash-city-source.zip) — source, tests and instructions, without dependencies or Git history.
 
-- `dist` — локальная версия.
-- `releases/yandex`, `smash-city-yandex.zip` — Яндекс Игры.
-- `releases/crazygames-basic`, `smash-city-crazygames-basic.zip` — первая CrazyGames отправка без монетизации.
-- `releases/crazygames-full`, `smash-city-crazygames-full.zip` — после разрешения монетизации и проверки площадкой.
-- `releases/build-manifest.json`, `http-smoke-report.json` — точные размеры/хеши и фактические проверки.
-- `releases/promo` — реальные production-обложки и скриншоты.
+Game ZIPs contain `index.html` at their root and relative assets. `releases/build-manifest.json` records their sizes and hashes; `http-smoke-report.json` records checks against extracted archives. The smoke script also generates actual production screenshots in `releases/promo`. Generated directories/reports are ignored; downloadable ZIPs are tracked in Git.
 
-Три платформенных ZIP содержат по 4 файла, index.html в корне, только HTML/CSS/JS assets и относительные пути. Около 395 КБ каждый. ZIP сохранены в Git для скачивания; остальные сгенерированные файлы игнорируются Git и воспроизводятся скриптами. Окончательные квоты площадок здесь не подтверждены.
+## Validation limits
 
-`releases/smash-city-source.zip` содержит исходный проект, тесты и инструкции без node_modules и истории Git. На GitHub откройте нужный ZIP в папке `releases` и нажмите **Download raw file**.
+172 unit checks and 14 browser scenarios pass. Unit checks cover all 60 mission/machine combinations, collision and ability timing, save migration, economy, ads and lifecycle. Browser checks cover real keyboard/touch input, menus, English-only behavior, layouts, smooth poses and bounded textures, plus ten complete consecutive missions. SDK callback fixtures are explicitly separate from production. Extracted archives are tested over HTTP with SDK loading intentionally denied, to verify playable recovery.
 
-## Проверено и ограничения
+Real CrazyGames preview, advertising inventory, physical phones and hardware FPS still require external testing. Official documentation was unavailable through this environment's proxy (403), so current platform upload limits were not independently verified. No game-platform publication has been performed. The Vite Phaser chunk-size warning does not prevent builds.
 
-Прошли 113 модульных проверок, 12 браузерных сценариев, установка из lockfile, 4 сборки, статическая проверка 3 ZIP и их отдельный HTTP-запуск. В archive-smoke намеренно отказано в SDK: настоящий Space разрушает здание и начисляет 25 монет, ошибок JS и production test-harness нет. Это проверка безопасного отказа, а не живой рекламы.
-
-Браузерные точные рекламные/временные сценарии используют явные fixtures; непрерывные прохождения отдельно не меняют позиции/прочность/очки. Физический телефон, аппаратные FPS и полный профиль памяти не проверены. Есть воспроизводимая проверка стабильности объектов/текстур при 40 сменах района; она не доказывает отсутствие всех утечек. Башни падают по заданному +X, декор проезжаемый. Vite предупреждает о крупном Phaser chunk, сборка проходит.
-
-Структура описана в [ARCHITECTURE.md](ARCHITECTURE.md); фактический итог — [PLAN.md](PLAN.md). Обязательные внешние шаги, данные карточек и выбор ZIP — [PUBLISHING.md](PUBLISHING.md) и [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Worktree не нужен: текущая облачная задача уже изолирована.
+See [ARCHITECTURE.md](ARCHITECTURE.md), [PUBLISHING.md](PUBLISHING.md), [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [PLAN.md](PLAN.md).

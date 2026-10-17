@@ -12,7 +12,7 @@ const addSafe = (value, increment) => Math.min(Number.MAX_SAFE_INTEGER, value + 
 
 export const ACHIEVEMENTS = Object.freeze([
   { id: 'first-hit', target: 1 }, { id: 'rookie', target: 25 }, { id: 'master', target: 100 },
-  { id: 'chain', target: 3 }, { id: 'collector', target: 3 }, { id: 'champion', target: 4 },
+  { id: 'chain', target: 3 }, { id: 'collector', target: vehicleIds.length }, { id: 'champion', target: MISSIONS.length },
 ].map(Object.freeze));
 export const DAILY_REWARDS = Object.freeze([50, 75, 100, 125, 150, 200, 300]);
 
@@ -208,7 +208,7 @@ export class Progression {
       || !Number.isSafeInteger(result.score) || result.score < 0) return rejected;
     const achieved = mission.objective === 'score' ? result.score
       : mission.objective === 'destroy' ? result.destroyed : result.bestChain;
-    if (!Number.isFinite(achieved) || achieved < mission.target) return rejected;
+    if (!Number.isFinite(achieved) || achieved < mission.target || !Number.isSafeInteger(result.destroyed) || result.destroyed < mission.minDestroyed) return rejected;
 
     const firstWin = !this.state.completedLevels.includes(mission.id);
     const bonus = firstWin ? mission.reward : Math.floor(mission.reward * 0.25);
